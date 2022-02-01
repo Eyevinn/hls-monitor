@@ -30,12 +30,15 @@ export default class HLSMonitor {
     }
   }
 
-  async getFails(): Promise<string[]> {
-    let errors: string[] = [];
+  async getFails(): Promise<Object[]> {
+    let errors: Object[] = [];
     let release = await this.lock.acquire();
-    for (const [key, data] of this.streamData) {
+    for(const [key, data] of this.streamData.entries()) {
       if (data.hasFailed) {
-        errors.push(key);
+        errors.push({
+          url: key,
+          error: data.errorType,
+        });
       }
     }
     release();
@@ -44,25 +47,71 @@ export default class HLSMonitor {
 
   async clearFails() {
     let release = await this.lock.acquire();
-    for (const [key, data] of this.streamData) {
+    for(const [key, data] of this.streamData.entries()) {
       if (data.hasFailed) {
         data.hasFailed = false;
-        this.streamData[key].set(data);
+        data.errorType = "";
+        this.streamData.set(key, data);
       }
     }
     release();
   }
 
-  stop() {
-    if (this.state === State.INACTIVE) return;
-    console.log("Stopping HLSMonitor");
-    this.state = State.INACTIVE;
+  private async reset() {
+    let release = await this.lock.acquire();
+    this.state = State.IDLE;
+    this.streamData = new Map<string, any>();
+    release();
   }
 
-  start() {
+  async start() {
     if (this.state === State.ACTIVE) return;
+    await this.reset();
     console.log("Starting HLSMonitor");
-    this.state = State.ACTIVE;
+    this.init();
+  }
+
+  async stop() {
+    if (this.state === State.INACTIVE) return;
+    this.state = State.INACTIVE;
+    console.log("HLSMonitor stopped");
+  }
+
+  async update(streams: string[]): Promise<string[]> {
+    let release = await this.lock.acquire();
+    for (const stream of streams) {
+      if (!this.streams.includes(stream)) {
+        this.streams.push(stream);
+      }
+    }
+    release();
+    return this.streams;
+  }
+
+  async remove(streams: any): Promise<string[]> {
+    let release = await this.lock.acquire();
+    for (const stream of streams) {
+      if (this.streams.includes(stream)) {
+        this.streams.splice(this.streams.indexOf(stream), 1);
+        const baseUrl = this.getBaseUrl(stream);
+        this.streamData.delete(baseUrl);
+      }
+    }
+    release();
+    return this.streams;
+  }
+
+  getStreamUrls(): string[] {
+    return this.streams;
+  }
+
+  private getBaseUrl(url: string): string {
+    let baseUrl: string;
+    const m = url.match(/^(.*)\/.*?$/);
+    if (m) {
+      baseUrl = m[1] + "/";
+    }
+    return baseUrl;
   }
 
   private async parseManifests(streamUrls: any[]): Promise<void> {
@@ -72,20 +121,15 @@ export default class HLSMonitor {
     }
     const manifestLoader = new HTTPManifestLoader();
     const interval = parseInt(process.env.HLS_MONITOR_INTERVAL || "6000");
-    for (const manifest of streamUrls) {
-      const masterM3U8 = await manifestLoader.load(manifest);
-      let baseUrl: string;
-      const m = manifest.match(/^(.*)\/.*?$/);
-      if (m) {
-        baseUrl = m[1] + "/";
-      }
+    for (const streamUrl of streamUrls) {
+      const masterM3U8 = await manifestLoader.load(streamUrl);
+      let baseUrl = this.getBaseUrl(streamUrl);
       let release = await this.lock.acquire();
       let data = this.streamData.get(baseUrl);
       for (const mediaM3U8 of masterM3U8.items.StreamItem) {
         const variant = await manifestLoader.load(
           `${baseUrl}${mediaM3U8.get("uri")}`
         );
-        // Validate mediaSequence
         let equalMseq = false;
         if (!data) {
           this.streamData.set(baseUrl, {
@@ -99,16 +143,19 @@ export default class HLSMonitor {
             lastFetch: Date.now(),
             newTime: Date.now(),
             hasFailed: false,
+            errorType: "",
           });
           data = this.streamData.get(baseUrl);
           continue;
         }
+        // Validate mediaSequence
         if (data.mediaSequence > variant.get("mediaSequence")) {
           console.error(
             `wrong mediaSequence for ${baseUrl} Expected: ${
               data.mediaSequence
             } Got: ${variant.get("mediaSequence")}`
           );
+          data.errorType = "media sequence counter";
           data.hasFailed = true;
           continue;
         } else if (data.mediaSequence === variant.get("mediaSequence")) {
@@ -127,6 +174,7 @@ export default class HLSMonitor {
               data.fileSequence
             } Got: ${variant.items.PlaylistItem[0].get("uri")}`
           );
+          data.errorType = "playlist";
           data.hasFailed = true;
           continue;
         }
@@ -143,14 +191,13 @@ export default class HLSMonitor {
                 data.DiscontinuitySequence
               } Got: ${variant.get("discontinuitySequence")}`
             );
+            data.errorType = "discontinuity sequence counter";
             data.hasFailed = true;
             continue;
           }
         }
         data.newDiscontinuitySequence = variant.get("discontinuitySequence");
-        data.nextIsDiscontinuity =
-          variant.items.PlaylistItem[0].get("discontinuity");
-
+        data.nextIsDiscontinuity = variant.items.PlaylistItem[0].get("discontinuity");
         // validate update interval
         if (Date.now() - data.lastFetch > interval) {
           console.error(
@@ -158,16 +205,18 @@ export default class HLSMonitor {
               Date.now() - data.lastFetch
             }`
           );
+          data.errorType = "update interval";
           data.hasFailed = true;
           continue;
         }
       }
-
       this.streamData.set(baseUrl, {
         mediaSequence: data.newMediaSequence,
         fileSequence: data.nextFileSequence,
         discontinuitySequence: data.newDiscontinuitySequence,
         lastFetch: data.newTime,
+        hasFailed: data.hasFailed,
+        errorType: data.errorType,
       });
       release();
     }

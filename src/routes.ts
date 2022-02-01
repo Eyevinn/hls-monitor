@@ -11,7 +11,11 @@ fastify.get("/status", async (request, reply) => {
       message: "monitor not initialized",
     });
   }
-  reply.send({ logs: monitor.getFails() });
+  const logs = await monitor.getFails()
+  reply
+    .code(200)
+    .header('Content-Type', 'application/json; charset=utf-8')
+    .send({ logs: logs });
 });
 
 fastify.get("/clearerrors", async (request, reply) => {
@@ -22,11 +26,21 @@ fastify.get("/clearerrors", async (request, reply) => {
     });
   }
   await monitor.clearFails();
-  reply.send({ logs: "OK" });
+  reply
+    .code(200)
+    .header('Content-Type', 'application/json; charset=utf-8')
+    .send({ logs: "Ok" });
+});
+
+fastify.get("/streams", async (request, reply) => {
+  reply.send({ streams: monitor.getStreamUrls() });
 });
 
 fastify.get("/healthcheck", async (request, reply) => {
-  reply.send({ status: "Healthy 💖" });
+  reply
+    .code(200)
+    .header('Content-Type', 'application/json; charset=utf-8')
+    .send({ status: "Healthy 💖" });
 });
 
 fastify.get("/stop", async (request, reply) => {
@@ -36,8 +50,11 @@ fastify.get("/stop", async (request, reply) => {
       message: "monitor not initialized",
     });
   }
-  monitor.stop();
-  reply.send({ status: "Stopped monitoring" });
+  await monitor.stop();
+  reply
+    .code(200)
+    .header('Content-Type', 'application/json; charset=utf-8')
+    .send({ status: "Stopped monitoring" });
 });
 
 fastify.get("/start", async (request, reply) => {
@@ -47,21 +64,60 @@ fastify.get("/start", async (request, reply) => {
       message: "monitor not initialized",
     });
   }
-  monitor.stop();
-  reply.send({ status: "Started monitoring" });
+  monitor.start();
+  reply
+    .code(200)
+    .header('Content-Type', 'application/json; charset=utf-8')
+    .send({ status: "Started monitoring" });
 });
 
-fastify.post("/init", async (request, reply) => {
+fastify.put("/delete", async (request, reply) => {
+  if (!monitor) {
+    reply.code(500).send({
+      status: "error",
+      message: "monitor not initialized",
+    });
+  }
+  const stream = request.body;
+  const resp = await monitor.remove(stream);
+  reply
+    .code(201)
+    .header('Content-Type', 'application/json; charset=utf-8')
+    .send({ 
+      message: "Deleted stream", 
+      streams: resp
+    });
+});
+
+
+fastify.put("/create", async (request, reply) => {
   const body = request.body;
   if (!body["streams"]) {
     reply.send({ error: "Missing streams in body" });
   }
-  monitor = new HLSMonitor(body["streams"]);
-  monitor.init();
-  reply.send({ status: "Ok" });
+  if (monitor) {
+    const resp = await monitor.update(body["streams"]);
+    reply
+      .code(201)
+      .header("Content-Type", "application/json; charset=utf-8")
+      .send({ 
+        message: "Updated streams to monitor",
+        streams: resp 
+      });
+  } else {
+    monitor = new HLSMonitor(body["streams"]);
+    monitor.init();
+    reply
+      .code(201)
+      .header("Content-Type", "application/json; charset=utf-8")
+      .send({ 
+        status: "Created new a hls-monitor",
+        streams: body["streams"] 
+      });
+  };
 });
 
 fastify.listen(3000, (err, address) => {
   if (err) throw err;
-  console.error(`Server is now listening on ${address}`);
+  console.log(`Server is now listening on ${address}`);
 });
