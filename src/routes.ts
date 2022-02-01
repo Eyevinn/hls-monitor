@@ -5,7 +5,7 @@ const fastify = Fastify({ logger: true });
 let monitor: HLSMonitor;
 
 fastify.register(require("fastify-swagger"), {
-  routePrefix: "/documentation",
+  routePrefix: "/docs",
   swagger: {
     info: {
       title: "HLS Monitor",
