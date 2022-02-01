@@ -4,6 +4,36 @@ import HLSMonitor from "./index";
 const fastify = Fastify({ logger: true });
 let monitor: HLSMonitor;
 
+fastify.register(require("fastify-swagger"), {
+  routePrefix: "/documentation",
+  swagger: {
+    info: {
+      title: "HLS Monitor",
+      description: "HLSMonitor API",
+      version: "0.0.1",
+    },
+    host: "localhost",
+    schemes: ["http"],
+    consumes: ["application/json"],
+    produces: ["application/json"],
+  },
+  uiConfig: {
+    docExpansion: "full",
+    deepLinking: false,
+  },
+  uiHooks: {
+    onRequest: function (request, reply, next) {
+      next();
+    },
+    preHandler: function (request, reply, next) {
+      next();
+    },
+  },
+  staticCSP: true,
+  transformStaticCSP: (header) => header,
+  exposeRoute: true,
+});
+
 fastify.get("/status", async (request, reply) => {
   if (!monitor) {
     reply.code(500).send({

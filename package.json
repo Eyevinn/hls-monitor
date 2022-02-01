@@ -24,8 +24,9 @@
   },
   "dependencies": {
     "@eyevinn/m3u8": "^0.5.2",
-    "node-fetch": "^2.6.5",
+    "async-mutex": "^0.3.2",
     "fastify": "^3.27.0",
-    "async-mutex": "^0.3.2"
+    "fastify-swagger": "^4.13.1",
+    "node-fetch": "^2.6.5"
   }
 }
