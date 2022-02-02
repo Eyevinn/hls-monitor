@@ -6,7 +6,7 @@ Service to monitor one or more hls streams for manifest errors and inconsistenci
 
 To initialise a new `HLSMonitorService` do: 
 
-```
+```typescript
 import HLSMonitorService from './routes';
 
 // initialise a new instance of HLSMonitorService
@@ -19,7 +19,7 @@ A basic Swagger doc can be accessed via `hls-monitor-endpoint/docs`
 
 Start monitoring a new stream by doing a `PUT` to `hls-monitor-endpoint/create` with the following payload: 
 
-```
+```json
 {
     streams: ['streams-to-monitor.m3u8']
 }
@@ -28,7 +28,7 @@ Start monitoring a new stream by doing a `PUT` to `hls-monitor-endpoint/create` 
 To get the latest error do a `GET` to `hls-monitor-endpoint/create`. to stop monitoring a specific stream do a `PUT` to 
 `hls-monitor-endpoint/delete` with the followin payload:
 
-```
+```json
 {
     streams: ['streams-to-delete.m3u8']
 }
