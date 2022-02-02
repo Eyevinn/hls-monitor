@@ -21,7 +21,7 @@ Start monitoring a new stream by doing a `PUT` to `hls-monitor-endpoint/create` 
 
 ```json
 {
-    "streams": ["streams-to-monitor.m3u8"]
+    "streams": ["streams-to-monitor/manifest.m3u8"]
 }
 ```
 
@@ -32,7 +32,7 @@ To stop monitoring a specific stream do a `PUT` to
 
 ```json
 {
-    "streams": ["streams-to-delete.m3u8"]
+    "streams": ["streams-to-delete/manifest.m3u8"]
 }
 ```
 
