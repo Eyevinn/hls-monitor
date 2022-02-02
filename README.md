@@ -83,7 +83,7 @@ const streams = ["streams-to-monitor/manifest.m3u8"];
 hlsMonitorService.monitor.create(streams);
 
 // Get latest errors
-const errors = hlsMonitorService.getErrors();
+const errors = hlsMonitorService.monitor.getErrors();
 console.log(errors);
 ```
 
