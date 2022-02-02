@@ -7,7 +7,7 @@ Service to monitor one or more hls streams for manifest errors and inconsistenci
 To initialise a new `HLSMonitorService` do: 
 
 ```typescript
-import HLSMonitorService from './routes';
+import { HLSMonitorService } from "@eyevinn/hls-monitor";
 
 // initialise a new instance of HLSMonitorService
 const hlsMonitorService = new HLSMonitorService();
