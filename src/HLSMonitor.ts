@@ -7,7 +7,7 @@ enum State {
   INACTIVE = "inactive",
 }
 
-export default class HLSMonitor {
+export class HLSMonitor {
   private streams: string[] = [];
   private state: State;
   private streamData = new Map<string, any>();

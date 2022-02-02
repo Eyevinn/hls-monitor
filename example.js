@@ -1,4 +1,4 @@
-import HLSMonitorService from './routes';
+const { HLSMonitorService } = require("./dist/index.js");
 
 // initialise a new instance of HLSMonitorService
 const hlsMonitorService = new HLSMonitorService();

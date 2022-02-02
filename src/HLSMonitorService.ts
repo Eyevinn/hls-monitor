@@ -1,7 +1,7 @@
 import Fastify from "fastify";
-import HLSMonitor from "./HLSMonitor";
+import { HLSMonitor } from "./HLSMonitor";
 
-export default class HLSMonitorService {
+export class HLSMonitorService {
   private fastify: any;
   private monitor: HLSMonitor;
 
