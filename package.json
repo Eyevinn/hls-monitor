@@ -1,13 +1,13 @@
 {
   "name": "@eyevinn/hls-monitor",
   "version": "0.0.1",
-  "description": "Library monitor a hls stream",
+  "description": "Library to monitor a hls stream(s)",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc --project ./",
     "postversion": "git push && git push --tags",
     "test": "jest",
-    "start": "node dist/src/routes.js"
+    "start": "node dist/routes.js"
   },
   "author": "Eyevinn Technology AB <work@eyevinn.se>",
   "repository": {
@@ -24,8 +24,9 @@
   },
   "dependencies": {
     "@eyevinn/m3u8": "^0.5.2",
-    "node-fetch": "^2.6.5",
+    "async-mutex": "^0.3.2",
     "fastify": "^3.27.0",
-    "async-mutex": "^0.3.2"
+    "fastify-swagger": "^4.13.1",
+    "node-fetch": "^2.6.5"
   }
 }
