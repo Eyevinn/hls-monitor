@@ -9,6 +9,13 @@ export class HLSMonitorService {
     this.fastify = Fastify({ logger: true });
   }
 
+  getMonitor(streams?: string[]) {
+    if (streams && !this.monitor) {
+      this.monitor = new HLSMonitor(streams);
+    }
+    return this.monitor;
+  }
+
   private async routes() {
     this.fastify.register(require("fastify-swagger"), {
       routePrefix: "/docs",

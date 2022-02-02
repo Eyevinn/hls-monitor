@@ -77,6 +77,12 @@ export class HLSMonitor {
     console.log("HLSMonitor stopped");
   }
 
+  /**
+   * Update the list of streams to monitor
+   * @param streams The list of streams that should be added 
+   * to the list of streams to monitor
+   * @returns The current list of streams to monitor
+   */
   async update(streams: string[]): Promise<string[]> {
     let release = await this.lock.acquire();
     for (const stream of streams) {
@@ -88,6 +94,11 @@ export class HLSMonitor {
     return this.streams;
   }
 
+  /**
+   * Removes a stream from the list of streams to monitor
+   * @param streams The streams to remove
+   * @returns The current list of streams to monitor
+   */
   async remove(streams: any): Promise<string[]> {
     let release = await this.lock.acquire();
     for (const stream of streams) {
