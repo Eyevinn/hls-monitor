@@ -3,17 +3,17 @@ import { HLSMonitor } from "./HLSMonitor";
 
 export class HLSMonitorService {
   private fastify: any;
-  private monitor: HLSMonitor;
+  private hlsMonitor: HLSMonitor;
 
   constructor() {
     this.fastify = Fastify({ logger: true });
   }
 
-  getMonitor(streams?: string[]) {
-    if (streams && !this.monitor) {
-      this.monitor = new HLSMonitor(streams);
+  get monitor() {
+    if (!this.hlsMonitor) {
+      this.hlsMonitor = new HLSMonitor([]);
     }
-    return this.monitor;
+    return this.hlsMonitor;
   }
 
   private async routes() {
@@ -48,27 +48,27 @@ export class HLSMonitorService {
     });
 
     this.fastify.get("/status", async (request, reply) => {
-      if (!this.monitor) {
+      if (!this.hlsMonitor) {
         reply.code(500).send({
           status: "error",
           message: "monitor not initialized",
         });
       }
-      const logs = await this.monitor.getErrors()
+      const logs = await this.hlsMonitor.getErrors()
       reply
         .code(200)
         .header('Content-Type', 'application/json; charset=utf-8')
         .send({ logs: logs });
     });
 
-    this.fastify.get("/clearerrors", async (request, reply) => {
-      if (!this.monitor) {
+    this.fastify.get("/clear-errors", async (request, reply) => {
+      if (!this.hlsMonitor) {
         reply.code(500).send({
           status: "error",
           message: "monitor not initialized",
         });
       }
-      await this.monitor.clearErrors();
+      await this.hlsMonitor.clearErrors();
       reply
         .code(200)
         .header('Content-Type', 'application/json; charset=utf-8')
@@ -76,13 +76,13 @@ export class HLSMonitorService {
     });
 
     this.fastify.get("/streams", async (request, reply) => {
-      if (!this.monitor) {
+      if (!this.hlsMonitor) {
         reply.code(500).send({
           status: "error",
           message: "monitor not initialized",
         });
       }
-      reply.send({ streams: this.monitor.getStreamUrls() });
+      reply.send({ streams: this.hlsMonitor.getStreamUrls() });
     });
 
     this.fastify.get("/healthcheck", async (request, reply) => {
@@ -93,13 +93,13 @@ export class HLSMonitorService {
     });
 
     this.fastify.get("/stop", async (request, reply) => {
-      if (!this.monitor) {
+      if (!this.hlsMonitor) {
         reply.code(500).send({
           status: "error",
           message: "monitor not initialized",
         });
       }
-      await this.monitor.stop();
+      await this.hlsMonitor.stop();
       reply
         .code(200)
         .header('Content-Type', 'application/json; charset=utf-8')
@@ -107,13 +107,13 @@ export class HLSMonitorService {
     });
 
     this.fastify.get("/start", async (request, reply) => {
-      if (!this.monitor) {
+      if (!this.hlsMonitor) {
         reply.code(500).send({
           status: "error",
           message: "monitor not initialized",
         });
       }
-      this.monitor.start();
+      this.hlsMonitor.start();
       reply
         .code(200)
         .header('Content-Type', 'application/json; charset=utf-8')
@@ -121,14 +121,14 @@ export class HLSMonitorService {
     });
 
     this.fastify.put("/delete", async (request, reply) => {
-      if (!this.monitor) {
+      if (!this.hlsMonitor) {
         reply.code(500).send({
           status: "error",
           message: "monitor not initialized",
         });
       }
       const stream = request.body;
-      const resp = await this.monitor.remove(stream);
+      const resp = await this.hlsMonitor.remove(stream);
       reply
         .code(201)
         .header('Content-Type', 'application/json; charset=utf-8')
@@ -143,18 +143,18 @@ export class HLSMonitorService {
       if (!body["streams"]) {
         reply.send({ error: "Missing streams in body" });
       }
-      if (this.monitor) {
-        const resp = await this.monitor.update(body["streams"]);
+      if (this.hlsMonitor) {
+        const resp = await this.hlsMonitor.update(body["streams"]);
         reply
           .code(201)
           .header("Content-Type", "application/json; charset=utf-8")
           .send({ 
-            message: "Updated streams to this.monitor",
+            message: "Updated streams to this.hlsMonitor",
             streams: resp 
           });
       } else {
-        this.monitor = new HLSMonitor(body["streams"]);
-        this.monitor.init();
+        this.hlsMonitor = new HLSMonitor(body["streams"]);
+        this.hlsMonitor.create();
         reply
           .code(201)
           .header("Content-Type", "application/json; charset=utf-8")

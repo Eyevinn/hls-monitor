@@ -18,7 +18,10 @@ export class HLSMonitor {
     this.state = State.IDLE;
   }
 
-  async init(): Promise<void> {
+  async create(streams?: string[]): Promise<void> {
+    if (streams) {
+      await this.update(streams);
+    }
     this.state = State.ACTIVE;
     while (this.state === State.ACTIVE) {
       try {
@@ -68,7 +71,7 @@ export class HLSMonitor {
     if (this.state === State.ACTIVE) return;
     await this.reset();
     console.log("Starting HLSMonitor");
-    this.init();
+    this.create();
   }
 
   async stop() {
@@ -211,11 +214,7 @@ export class HLSMonitor {
         data.nextIsDiscontinuity = variant.items.PlaylistItem[0].get("discontinuity");
         // validate update interval
         if (Date.now() - data.lastFetch > interval) {
-          console.error(
-            `wrong interval for ${baseUrl} Expected: ${interval} Got: ${
-              Date.now() - data.lastFetch
-            }`
-          );
+          console.error(`Stale manifest for ${baseUrl} Expected: ${interval} Got: ${Date.now() - data.lastFetch}`);
           data.errorType = "update interval";
           data.hasFailed = true;
           continue;
