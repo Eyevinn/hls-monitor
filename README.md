@@ -4,7 +4,7 @@ Service to monitor one or more hls streams for manifest errors and inconsistenci
 Possible inconsistencies and errors are:
   - Media sequence counter issues. 
   - Discontinuity sequence counter issues. 
-  - Media sequence length should be consistent. The default is 6s but can be configured via the env `HLS_MONITOR_INTERVAL`.
+  - Media sequence length should be consistent. The default is 6000ms but can be configured via the env `HLS_MONITOR_INTERVAL`.
   - Playlist is updating correctly. 
 
 ## Setup
