@@ -25,7 +25,9 @@ Start monitoring a new stream by doing a `PUT` to `hls-monitor-endpoint/create` 
 }
 ```
 
-To get the latest error do a `GET` to `hls-monitor-endpoint/create`. to stop monitoring a specific stream do a `PUT` to 
+To get the latest error do a `GET` to `hls-monitor-endpoint/status`. 
+
+To stop monitoring a specific stream do a `PUT` to 
 `hls-monitor-endpoint/delete` with the followin payload:
 
 ```json
@@ -52,7 +54,7 @@ Avaliable endpoints are:
 
 `GET` /stop
 
-Currently only the latest error for a stream is saved. However all errors are being logged.
+Currently only the latest error type is recorded for a stream. However all error types are being logged.
 
 # [Contributing](CONTRIBUTING.md)
 
