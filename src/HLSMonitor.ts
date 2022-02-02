@@ -47,10 +47,10 @@ export class HLSMonitor {
     let errors: Object[] = [];
     let release = await this.lock.acquire();
     for(const [key, data] of this.streamData.entries()) {
-      if (data.hasFailed) {
+      if (data.errors.length > 0) {
         errors.push({
           url: key,
-          error: data.errorType,
+          errors: data.errors,
         });
       }
     }
@@ -61,9 +61,8 @@ export class HLSMonitor {
   async clearErrors() {
     let release = await this.lock.acquire();
     for(const [key, data] of this.streamData.entries()) {
-      if (data.hasFailed) {
-        data.hasFailed = false;
-        data.errorType = "";
+      if (data.errors.length > 0) {
+        data.errors = [];
         this.streamData.set(key, data);
       }
     }
@@ -149,11 +148,13 @@ export class HLSMonitor {
       let baseUrl = this.getBaseUrl(streamUrl);
       let release = await this.lock.acquire();
       let data = this.streamData.get(baseUrl);
+      let error: string;
       for (const mediaM3U8 of masterM3U8.items.StreamItem) {
         const variant = await manifestLoader.load(
           `${baseUrl}${mediaM3U8.get("uri")}`
         );
         let equalMseq = false;
+        const currTime = new Date().toISOString();
         if (!data) {
           this.streamData.set(baseUrl, {
             mediaSequence: variant.get("mediaSequence"),
@@ -165,21 +166,15 @@ export class HLSMonitor {
             nextIsDiscontinuity: false,
             lastFetch: Date.now(),
             newTime: Date.now(),
-            hasFailed: false,
-            errorType: "",
+            errors: [],
           });
           data = this.streamData.get(baseUrl);
           continue;
         }
         // Validate mediaSequence
         if (data.mediaSequence > variant.get("mediaSequence")) {
-          console.error(
-            `wrong mediaSequence for ${baseUrl} Expected: ${
-              data.mediaSequence
-            } Got: ${variant.get("mediaSequence")}`
-          );
-          data.errorType = "media sequence counter";
-          data.hasFailed = true;
+          error = `[${currTime}] Wrong mediaSequence! Expected: ${data.mediaSequence} Got: ${variant.get("mediaSequence")}`;
+          console.error(`[${baseUrl}]${error}`);
           continue;
         } else if (data.mediaSequence === variant.get("mediaSequence")) {
           equalMseq = true;
@@ -188,17 +183,10 @@ export class HLSMonitor {
           data.newTime = Date.now();
         }
         // Validate playlist
-        if (
-          data.fileSequence === variant.items.PlaylistItem[0].get("uri") &&
-          !equalMseq
-        ) {
-          console.error(
-            `wrong playlist for ${baseUrl} Expected: ${
-              data.fileSequence
-            } Got: ${variant.items.PlaylistItem[0].get("uri")}`
-          );
-          data.errorType = "playlist";
-          data.hasFailed = true;
+        if (data.fileSequence === variant.items.PlaylistItem[0].get("uri") && !equalMseq) {
+          error = `[${currTime}] Wrong playlist! Expected: ${data.fileSequence} Got: ${variant.items.PlaylistItem[0].get("uri")}`;
+          console.error(`[${baseUrl}]${error}`);
+          data.error.push(error);
           continue;
         }
 
@@ -206,16 +194,10 @@ export class HLSMonitor {
 
         // Validate discontinuitySequence
         if (data.nextIsDiscontinuity) {
-          if (
-            data.DiscontinuitySequence >= variant.get("discontinuitySequence")
-          ) {
-            console.error(
-              `wrong discontinuitySequence for ${baseUrl} Expected: ${
-                data.DiscontinuitySequence
-              } Got: ${variant.get("discontinuitySequence")}`
-            );
-            data.errorType = "discontinuity sequence counter";
-            data.hasFailed = true;
+          if (data.DiscontinuitySequence >= variant.get("discontinuitySequence")) {
+            error = `[${currTime}] Wrong discontinuitySequence! Expected: ${data.DiscontinuitySequence} Got: ${variant.get("discontinuitySequence")}`
+            console.error(`[${baseUrl}]${error}`);
+            data.error.push(error);
             continue;
           }
         }
@@ -223,19 +205,20 @@ export class HLSMonitor {
         data.nextIsDiscontinuity = variant.items.PlaylistItem[0].get("discontinuity");
         // validate update interval
         if (Date.now() - data.lastFetch > this.interval) {
-          console.error(`Stale manifest for ${baseUrl} Expected: ${this.interval} Got: ${Date.now() - data.lastFetch}`);
-          data.errorType = "update interval";
-          data.hasFailed = true;
+          error = `[${currTime}] Stale manifest! Expected: ${this.interval} Got: ${Date.now() - data.lastFetch}`
+          console.error(`[${baseUrl}]${error}`);
+          data.errors.push(error);
           continue;
         }
       }
+      let currErrors = this.streamData.get(baseUrl).errors;
+      currErrors.concat(data.errors);
       this.streamData.set(baseUrl, {
         mediaSequence: data.newMediaSequence,
         fileSequence: data.nextFileSequence,
         discontinuitySequence: data.newDiscontinuitySequence,
         lastFetch: data.newTime,
-        hasFailed: data.hasFailed,
-        errorType: data.errorType,
+        errors: currErrors,
       });
       release();
     }
