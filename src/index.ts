@@ -30,7 +30,7 @@ export default class HLSMonitor {
     }
   }
 
-  async getFails(): Promise<Object[]> {
+  async getErrors(): Promise<Object[]> {
     let errors: Object[] = [];
     let release = await this.lock.acquire();
     for(const [key, data] of this.streamData.entries()) {
@@ -45,7 +45,7 @@ export default class HLSMonitor {
     return errors;
   }
 
-  async clearFails() {
+  async clearErrors() {
     let release = await this.lock.acquire();
     for(const [key, data] of this.streamData.entries()) {
       if (data.hasFailed) {

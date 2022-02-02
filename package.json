@@ -7,7 +7,7 @@
     "build": "tsc --project ./",
     "postversion": "git push && git push --tags",
     "test": "jest",
-    "start": "node dist/routes.js"
+    "start": "node dist/example.js"
   },
   "author": "Eyevinn Technology AB <work@eyevinn.se>",
   "repository": {
