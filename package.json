@@ -6,8 +6,7 @@
   "scripts": {
     "build": "tsc --project ./",
     "postversion": "git push && git push --tags",
-    "test": "jest",
-    "start": "node dist/routes.js"
+    "test": "jest --passWithNoTests"
   },
   "author": "Eyevinn Technology AB <work@eyevinn.se>",
   "repository": {

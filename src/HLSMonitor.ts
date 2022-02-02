@@ -1,4 +1,4 @@
-import { HTTPManifestLoader } from "./manifest_loader";
+import { HTTPManifestLoader } from "./ManifestLoader";
 import { Mutex } from "async-mutex";
 
 enum State {
@@ -7,7 +7,7 @@ enum State {
   INACTIVE = "inactive",
 }
 
-export default class HLSMonitor {
+export class HLSMonitor {
   private streams: string[] = [];
   private state: State;
   private streamData = new Map<string, any>();
@@ -30,7 +30,7 @@ export default class HLSMonitor {
     }
   }
 
-  async getFails(): Promise<Object[]> {
+  async getErrors(): Promise<Object[]> {
     let errors: Object[] = [];
     let release = await this.lock.acquire();
     for(const [key, data] of this.streamData.entries()) {
@@ -45,7 +45,7 @@ export default class HLSMonitor {
     return errors;
   }
 
-  async clearFails() {
+  async clearErrors() {
     let release = await this.lock.acquire();
     for(const [key, data] of this.streamData.entries()) {
       if (data.hasFailed) {
