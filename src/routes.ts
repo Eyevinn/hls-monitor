@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import HLSMonitor from "./index";
+import HLSMonitor from "./HLSMonitor";
 
 export default class HLSMonitorService {
   private fastify: any;

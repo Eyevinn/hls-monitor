@@ -1,4 +1,4 @@
-import { HTTPManifestLoader } from "./manifest_loader";
+import { HTTPManifestLoader } from "./ManifestLoader";
 import { Mutex } from "async-mutex";
 
 enum State {
