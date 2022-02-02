@@ -21,7 +21,7 @@ Start monitoring a new stream by doing a `PUT` to `hls-monitor-endpoint/create` 
 
 ```json
 {
-    streams: ['streams-to-monitor.m3u8']
+    streams: ["streams-to-monitor.m3u8"]
 }
 ```
 
@@ -30,7 +30,7 @@ To get the latest error do a `GET` to `hls-monitor-endpoint/create`. to stop mon
 
 ```json
 {
-    streams: ['streams-to-delete.m3u8']
+    streams: ["streams-to-delete.m3u8"]
 }
 ```
 
