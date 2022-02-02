@@ -4,7 +4,7 @@ Service to monitor one or more hls streams for manifest errors and inconsistenci
 Possible inconsistencies and errors are:
   - Media sequence counter issues. 
   - Discontinuity sequence counter issues. 
-  - Detect stale manifests. The default is at least 6000ms but can be configured via the env `HLS_MONITOR_INTERVAL`. 
+  - Detect stale manifests. The default is at least 6000ms but can be configured via the env `HLS_MONITOR_INTERVAL` or set when creating a new HLSMonitor. 
   - Playlist is updating correctly. 
 
 ## Setup
@@ -26,7 +26,16 @@ Start monitoring a new stream by doing a `PUT` to `hls-monitor-endpoint/create` 
 
 ```json
 {
-    "streams": ["streams-to-monitor/manifest.m3u8"]
+  "streams": ["streams-to-monitor/manifest.m3u8"]
+}
+```
+
+It's also possible to set the interval (in milliseconds) for when a manifest should be considered as stale, this is done via: 
+
+```json
+{
+  "streams": ["streams-to-monitor/manifest.m3u8"],
+  "monitorInterval": 6000
 }
 ```
 
@@ -37,7 +46,7 @@ To stop monitoring a specific stream do a `PUT` to
 
 ```json
 {
-    "streams": ["streams-to-delete/manifest.m3u8"]
+  "streams": ["streams-to-delete/manifest.m3u8"]
 }
 ```
 

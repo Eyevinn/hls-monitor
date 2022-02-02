@@ -72,7 +72,7 @@ export class HLSMonitorService {
       reply
         .code(200)
         .header('Content-Type', 'application/json; charset=utf-8')
-        .send({ logs: "Ok" });
+        .send({ message: "Cleared errors" });
     });
 
     this.fastify.get("/streams", async (request, reply) => {
@@ -153,7 +153,11 @@ export class HLSMonitorService {
             streams: resp 
           });
       } else {
-        this.hlsMonitor = new HLSMonitor(body["streams"]);
+        if(body["monitorInterval"]) {
+          this.hlsMonitor = new HLSMonitor(body["streams"], body["monitorInterval"]);
+        } else {
+          this.hlsMonitor = new HLSMonitor(body["streams"]);
+        }
         this.hlsMonitor.create();
         reply
           .code(201)

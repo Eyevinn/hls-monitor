@@ -11,11 +11,21 @@ export class HLSMonitor {
   private streams: string[] = [];
   private state: State;
   private streamData = new Map<string, any>();
+  private interval: number;
   private lock = new Mutex();
 
-  constructor(hlsStreams: string[]) {
+  /**
+    * @param hlsStreams The streams to monitor.
+    * @param [monitorInterval] The monitor interval for streams overrides the default (6000ms) monitor interval and the HLS_MONITOR_INTERVAL environment variable.
+    */
+  constructor(hlsStreams: string[], monitorInterval?: number) {
     this.streams = hlsStreams;
     this.state = State.IDLE;
+    if (monitorInterval) {
+      this.interval = monitorInterval;
+    } else {
+      this.interval = parseInt(process.env.HLS_MONITOR_INTERVAL || "6000");
+    }
   }
 
   async create(streams?: string[]): Promise<void> {
@@ -134,7 +144,6 @@ export class HLSMonitor {
       return;
     }
     const manifestLoader = new HTTPManifestLoader();
-    const interval = parseInt(process.env.HLS_MONITOR_INTERVAL || "6000");
     for (const streamUrl of streamUrls) {
       const masterM3U8 = await manifestLoader.load(streamUrl);
       let baseUrl = this.getBaseUrl(streamUrl);
@@ -213,8 +222,8 @@ export class HLSMonitor {
         data.newDiscontinuitySequence = variant.get("discontinuitySequence");
         data.nextIsDiscontinuity = variant.items.PlaylistItem[0].get("discontinuity");
         // validate update interval
-        if (Date.now() - data.lastFetch > interval) {
-          console.error(`Stale manifest for ${baseUrl} Expected: ${interval} Got: ${Date.now() - data.lastFetch}`);
+        if (Date.now() - data.lastFetch > this.interval) {
+          console.error(`Stale manifest for ${baseUrl} Expected: ${this.interval} Got: ${Date.now() - data.lastFetch}`);
           data.errorType = "update interval";
           data.hasFailed = true;
           continue;
