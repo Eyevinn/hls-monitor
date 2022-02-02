@@ -1,42 +1,56 @@
 # hls-monitor
 
-Service to monitor one or more hls streams for manifest errors and inconsistencies.  
+Service to monitor one or more hls streams for manifest errors and inconsistencies.
+Possible inconsistencies and errors are:
+  - Media sequence counter issues. 
+  - Discontinuity sequence counter issues. 
+  - Detect stale manifests. The default is at least 6000ms but can be configured via the env `HLS_MONITOR_INTERVAL` or set when creating a new HLSMonitor. 
+  - Playlist is updating correctly. 
 
 ## Setup
 
-To initialise a new `HLSMonitorService` do: 
+To initialize a new `HLSMonitorService` do: 
 
 ```typescript
 import { HLSMonitorService } from "@eyevinn/hls-monitor";
 
-// initialise a new instance of HLSMonitorService
+// initialize a new instance of HLSMonitorService
 const hlsMonitorService = new HLSMonitorService();
 // register the routes 
 hlsMonitorService.listen(3000);
 ```
-The monitor service is now up and running and avaliable on port `3000`.
+The monitor service is now up and running and available on port `3000`.
 A basic Swagger doc can be accessed via `hls-monitor-endpoint/docs`
 
 Start monitoring a new stream by doing a `PUT` to `hls-monitor-endpoint/create` with the following payload: 
 
 ```json
 {
-    "streams": ["streams-to-monitor/manifest.m3u8"]
+  "streams": ["streams-to-monitor/manifest.m3u8"]
+}
+```
+
+It's also possible to set the interval (in milliseconds) for when a manifest should be considered as stale, this is done via: 
+
+```json
+{
+  "streams": ["streams-to-monitor/manifest.m3u8"],
+  "monitorInterval": 6000
 }
 ```
 
 To get the latest error do a `GET` to `hls-monitor-endpoint/status`. 
 
 To stop monitoring a specific stream do a `PUT` to 
-`hls-monitor-endpoint/delete` with the followin payload:
+`hls-monitor-endpoint/delete` with the following payload:
 
 ```json
 {
-    "streams": ["streams-to-delete/manifest.m3u8"]
+  "streams": ["streams-to-delete/manifest.m3u8"]
 }
 ```
 
-Avaliable endpoints are: 
+Available endpoints are: 
 
 `PUT` /create
 
@@ -44,7 +58,7 @@ Avaliable endpoints are:
 
 `GET` /status
 
-`GET` /clearerrors
+`GET` /clear-errors
 
 `GET` /streams
 
@@ -55,6 +69,23 @@ Avaliable endpoints are:
 `GET` /stop
 
 Currently only the latest error type is recorded for a stream. However all error types are being logged.
+
+The `HLSMonitorService` can also be controlled through code:
+
+```typescript
+import { HLSMonitorService } from "@eyevinn/hls-monitor";
+
+// initialize a new instance of HLSMonitorService
+const hlsMonitorService = new HLSMonitorService();
+
+// create a new hls-monitor
+const streams = ["streams-to-monitor/manifest.m3u8"];
+hlsMonitorService.monitor.create(streams);
+
+// Get latest errors
+const errors = hlsMonitorService.getErrors();
+console.log(errors);
+```
 
 # [Contributing](CONTRIBUTING.md)
 
