@@ -1,6 +1,7 @@
 import { HTTPManifestLoader } from "./ManifestLoader";
 import { Mutex } from "async-mutex";
 
+const timer = (ms) => new Promise((res) => setTimeout(res, ms));
 enum State {
   IDLE = "idle",
   ACTIVE = "active",
@@ -37,6 +38,7 @@ export class HLSMonitor {
     while (this.state === State.ACTIVE) {
       try {
         await this.parseManifests(this.streams);
+        await timer(this.interval/2);
       } catch (error) {
         console.error(error);
         this.state = State.INACTIVE;
