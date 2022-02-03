@@ -150,9 +150,7 @@ export class HLSMonitor {
       let data = this.streamData.get(baseUrl);
       let error: string;
       for (const mediaM3U8 of masterM3U8.items.StreamItem) {
-        const variant = await manifestLoader.load(
-          `${baseUrl}${mediaM3U8.get("uri")}`
-        );
+        const variant = await manifestLoader.load(`${baseUrl}${mediaM3U8.get("uri")}`);
         let equalMseq = false;
         const currTime = new Date().toISOString();
         if (!data) {
@@ -203,9 +201,10 @@ export class HLSMonitor {
         }
         data.newDiscontinuitySequence = variant.get("discontinuitySequence");
         data.nextIsDiscontinuity = variant.items.PlaylistItem[0].get("discontinuity");
-        // validate update interval
-        if (Date.now() - data.lastFetch > this.interval) {
-          error = `[${currTime}] Stale manifest! Expected: ${this.interval} Got: ${Date.now() - data.lastFetch}`
+        // validate update interval (Stale manifest)
+        const updateInterval = Date.now() - data.lastFetch;
+        if (updateInterval > this.interval) {
+          error = `[${currTime}] Stale manifest! Expected: ${this.interval} Got: ${updateInterval}`
           console.error(`[${baseUrl}]${error}`);
           data.errors.push(error);
           continue;
