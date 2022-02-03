@@ -26,6 +26,7 @@ export class HLSMonitor {
     } else {
       this.interval = parseInt(process.env.HLS_MONITOR_INTERVAL || "6000");
     }
+    console.log(`Monitor interval: ${this.interval}`);
   }
 
   async create(streams?: string[]): Promise<void> {
@@ -47,10 +48,10 @@ export class HLSMonitor {
     let errors: Object[] = [];
     let release = await this.lock.acquire();
     for(const [key, data] of this.streamData.entries()) {
-      if (data.hasFailed) {
+      if (data.errors.length > 0) {
         errors.push({
           url: key,
-          error: data.errorType,
+          errors: data.errors,
         });
       }
     }
@@ -61,9 +62,8 @@ export class HLSMonitor {
   async clearErrors() {
     let release = await this.lock.acquire();
     for(const [key, data] of this.streamData.entries()) {
-      if (data.hasFailed) {
-        data.hasFailed = false;
-        data.errorType = "";
+      if (data.errors.length > 0) {
+        data.errors = [];
         this.streamData.set(key, data);
       }
     }
@@ -149,11 +149,12 @@ export class HLSMonitor {
       let baseUrl = this.getBaseUrl(streamUrl);
       let release = await this.lock.acquire();
       let data = this.streamData.get(baseUrl);
+      let error: string;
       for (const mediaM3U8 of masterM3U8.items.StreamItem) {
-        const variant = await manifestLoader.load(
-          `${baseUrl}${mediaM3U8.get("uri")}`
-        );
+        const variant = await manifestLoader.load(`${baseUrl}${mediaM3U8.get("uri")}`);
         let equalMseq = false;
+        const bw = variant.get("bandwidth");
+        const currTime = new Date().toISOString();
         if (!data) {
           this.streamData.set(baseUrl, {
             mediaSequence: variant.get("mediaSequence"),
@@ -165,77 +166,58 @@ export class HLSMonitor {
             nextIsDiscontinuity: false,
             lastFetch: Date.now(),
             newTime: Date.now(),
-            hasFailed: false,
-            errorType: "",
+            errors: [],
           });
           data = this.streamData.get(baseUrl);
           continue;
         }
         // Validate mediaSequence
         if (data.mediaSequence > variant.get("mediaSequence")) {
-          console.error(
-            `wrong mediaSequence for ${baseUrl} Expected: ${
-              data.mediaSequence
-            } Got: ${variant.get("mediaSequence")}`
-          );
-          data.errorType = "media sequence counter";
-          data.hasFailed = true;
+          error = `[${currTime}] Error in mediaSequence! Expected: ${data.mediaSequence} Got: ${variant.get("mediaSequence")} BW: ${bw}`;
+          console.error(`[${baseUrl}]${error}`);
           continue;
         } else if (data.mediaSequence === variant.get("mediaSequence")) {
+          data.newMediaSequence = data.mediaSequence;
           equalMseq = true;
         } else {
           data.newMediaSequence = variant.get("mediaSequence");
           data.newTime = Date.now();
         }
         // Validate playlist
-        if (
-          data.fileSequence === variant.items.PlaylistItem[0].get("uri") &&
-          !equalMseq
-        ) {
-          console.error(
-            `wrong playlist for ${baseUrl} Expected: ${
-              data.fileSequence
-            } Got: ${variant.items.PlaylistItem[0].get("uri")}`
-          );
-          data.errorType = "playlist";
-          data.hasFailed = true;
-          continue;
+        if (data.fileSequence === variant.items.PlaylistItem[0].get("uri") && !equalMseq) {
+          error = `[${currTime}] Error in playlist! Expected: ${data.fileSequence} Got: ${variant.items.PlaylistItem[0].get("uri")} BW: ${bw}`;
+          console.error(`[${baseUrl}]${error}`);
+          data.error.push(error);
         }
 
         data.newFileSequence = variant.items.PlaylistItem[0].get("uri");
 
         // Validate discontinuitySequence
         if (data.nextIsDiscontinuity) {
-          if (
-            data.DiscontinuitySequence >= variant.get("discontinuitySequence")
-          ) {
-            console.error(
-              `wrong discontinuitySequence for ${baseUrl} Expected: ${
-                data.DiscontinuitySequence
-              } Got: ${variant.get("discontinuitySequence")}`
-            );
-            data.errorType = "discontinuity sequence counter";
-            data.hasFailed = true;
-            continue;
+          if (data.DiscontinuitySequence >= variant.get("discontinuitySequence")) {
+            error = `[${currTime}] Error in discontinuitySequence! Expected: ${data.DiscontinuitySequence} Got: ${variant.get("discontinuitySequence")} BW: ${bw}`;
+            console.error(`[${baseUrl}]${error}`);
+            data.error.push(error);
           }
         }
         data.newDiscontinuitySequence = variant.get("discontinuitySequence");
         data.nextIsDiscontinuity = variant.items.PlaylistItem[0].get("discontinuity");
-        // validate update interval
-        if (Date.now() - data.lastFetch > this.interval) {
-          console.error(`Stale manifest for ${baseUrl} Expected: ${this.interval} Got: ${Date.now() - data.lastFetch}`);
-          data.errorType = "update interval";
-          data.hasFailed = true;
-          continue;
-        }
       }
+      // validate update interval (Stale manifest)
+      const updateInterval = Date.now() - data.lastFetch;
+      if (updateInterval > this.interval) {
+        error = `[${new Date().toISOString()}] Stale manifest! Expected: ${this.interval}ms Got: ${updateInterval}ms`;
+        console.error(`[${baseUrl}]${error}`);
+        data.errors.push(error);
+      }
+      let currErrors = this.streamData.get(baseUrl).errors;
+      currErrors.concat(data.errors);
       this.streamData.set(baseUrl, {
         mediaSequence: data.newMediaSequence,
         fileSequence: data.nextFileSequence,
         discontinuitySequence: data.newDiscontinuitySequence,
-        lastFetch: data.newTime,
-        hasFailed: data.hasFailed,
-        errorType: data.errorType,
+        lastFetch: data.newTime ? data.newTime : data.lastFetch,
+        errors: currErrors,
       });
       release();
     }

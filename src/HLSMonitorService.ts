@@ -149,7 +149,7 @@ export class HLSMonitorService {
           .code(201)
           .header("Content-Type", "application/json; charset=utf-8")
           .send({ 
-            message: "Updated streams to this.hlsMonitor",
+            message: "Updated hls-monitors streams",
             streams: resp 
           });
       } else {
