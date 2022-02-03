@@ -68,8 +68,6 @@ Available endpoints are:
 
 `GET` /stop
 
-Currently only the latest error type is recorded for a stream. However all error types are being logged.
-
 The `HLSMonitorService` can also be controlled through code:
 
 ```typescript
