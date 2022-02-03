@@ -153,19 +153,23 @@ export class HLSMonitorService {
             streams: resp 
           });
       } else {
-        if(body["monitorInterval"]) {
-          this.hlsMonitor = new HLSMonitor(body["streams"], body["monitorInterval"]);
+        if(body["stale_limit"]) {
+          this.hlsMonitor = new HLSMonitor(body["streams"], body["stale_limit"]);
         } else {
           this.hlsMonitor = new HLSMonitor(body["streams"]);
         }
         this.hlsMonitor.create();
+        const rep = {
+          status: "Created a new hls-monitor",
+          streams: body["streams"]
+        }
+        if(body["stale_limit"]) {
+          rep["stale_limit"] = body["stale_limit"];
+        }
         reply
           .code(201)
           .header("Content-Type", "application/json; charset=utf-8")
-          .send({ 
-            status: "Created a new hls-monitor",
-            streams: body["streams"] 
-          });
+          .send(rep);
       };
     });
   }

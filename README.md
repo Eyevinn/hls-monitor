@@ -26,7 +26,7 @@ Start monitoring a new stream by doing a `PUT` to `hls-monitor-endpoint/create` 
 
 ```json
 {
-  "streams": ["streams-to-monitor/manifest.m3u8"]
+  "streams": ["stream-to-monitor/manifest.m3u8"]
 }
 ```
 
@@ -34,8 +34,8 @@ It's also possible to set the interval (in milliseconds) for when a manifest sho
 
 ```json
 {
-  "streams": ["streams-to-monitor/manifest.m3u8"],
-  "monitorInterval": 6000
+  "streams": ["stream-to-monitor/manifest.m3u8"],
+  "staleLimit": 6000
 }
 ```
 
