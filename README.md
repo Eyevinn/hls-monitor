@@ -35,7 +35,7 @@ It's also possible to set the interval (in milliseconds) for when a manifest sho
 ```json
 {
   "streams": ["stream-to-monitor/manifest.m3u8"],
-  "staleLimit": 6000
+  "stale-limit": 6000
 }
 ```
 
