@@ -26,6 +26,7 @@ export class HLSMonitor {
     } else {
       this.interval = parseInt(process.env.HLS_MONITOR_INTERVAL || "6000");
     }
+    console.log(`Monitor interval: ${this.interval}`);
   }
 
   async create(streams?: string[]): Promise<void> {
@@ -152,6 +153,7 @@ export class HLSMonitor {
       for (const mediaM3U8 of masterM3U8.items.StreamItem) {
         const variant = await manifestLoader.load(`${baseUrl}${mediaM3U8.get("uri")}`);
         let equalMseq = false;
+        const bw = variant.get("bandwidth");
         const currTime = new Date().toISOString();
         if (!data) {
           this.streamData.set(baseUrl, {
@@ -171,10 +173,11 @@ export class HLSMonitor {
         }
         // Validate mediaSequence
         if (data.mediaSequence > variant.get("mediaSequence")) {
-          error = `[${currTime}] Wrong mediaSequence! Expected: ${data.mediaSequence} Got: ${variant.get("mediaSequence")}`;
+          error = `[${currTime}] Error in mediaSequence! Expected: ${data.mediaSequence} Got: ${variant.get("mediaSequence")} BW: ${bw}`;
           console.error(`[${baseUrl}]${error}`);
           continue;
         } else if (data.mediaSequence === variant.get("mediaSequence")) {
+          data.newMediaSequence = data.mediaSequence;
           equalMseq = true;
         } else {
           data.newMediaSequence = variant.get("mediaSequence");
@@ -182,10 +185,9 @@ export class HLSMonitor {
         }
         // Validate playlist
         if (data.fileSequence === variant.items.PlaylistItem[0].get("uri") && !equalMseq) {
-          error = `[${currTime}] Wrong playlist! Expected: ${data.fileSequence} Got: ${variant.items.PlaylistItem[0].get("uri")}`;
+          error = `[${currTime}] Error in playlist! Expected: ${data.fileSequence} Got: ${variant.items.PlaylistItem[0].get("uri")} BW: ${bw}`;
           console.error(`[${baseUrl}]${error}`);
           data.error.push(error);
-          continue;
         }
 
         data.newFileSequence = variant.items.PlaylistItem[0].get("uri");
@@ -193,22 +195,20 @@ export class HLSMonitor {
         // Validate discontinuitySequence
         if (data.nextIsDiscontinuity) {
           if (data.DiscontinuitySequence >= variant.get("discontinuitySequence")) {
-            error = `[${currTime}] Wrong discontinuitySequence! Expected: ${data.DiscontinuitySequence} Got: ${variant.get("discontinuitySequence")}`
+            error = `[${currTime}] Error in discontinuitySequence! Expected: ${data.DiscontinuitySequence} Got: ${variant.get("discontinuitySequence")} BW: ${bw}`;
             console.error(`[${baseUrl}]${error}`);
             data.error.push(error);
-            continue;
           }
         }
         data.newDiscontinuitySequence = variant.get("discontinuitySequence");
         data.nextIsDiscontinuity = variant.items.PlaylistItem[0].get("discontinuity");
-        // validate update interval (Stale manifest)
-        const updateInterval = Date.now() - data.lastFetch;
-        if (updateInterval > this.interval) {
-          error = `[${currTime}] Stale manifest! Expected: ${this.interval} Got: ${updateInterval}`
-          console.error(`[${baseUrl}]${error}`);
-          data.errors.push(error);
-          continue;
-        }
+      }
+      // validate update interval (Stale manifest)
+      const updateInterval = Date.now() - data.lastFetch;
+      if (updateInterval > this.interval) {
+        error = `[${new Date().toISOString()}] Stale manifest! Expected: ${this.interval}ms Got: ${updateInterval}ms`;
+        console.error(`[${baseUrl}]${error}`);
+        data.errors.push(error);
       }
       let currErrors = this.streamData.get(baseUrl).errors;
       currErrors.concat(data.errors);
@@ -216,7 +216,7 @@ export class HLSMonitor {
         mediaSequence: data.newMediaSequence,
         fileSequence: data.nextFileSequence,
         discontinuitySequence: data.newDiscontinuitySequence,
-        lastFetch: data.newTime,
+        lastFetch: data.newTime ? data.newTime : data.lastFetch,
         errors: currErrors,
       });
       release();
