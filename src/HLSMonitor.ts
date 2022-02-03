@@ -29,7 +29,7 @@ export class HLSMonitor {
       this.staleLimit = parseInt(process.env.HLS_MONITOR_INTERVAL || "6000");
     }
     console.log(`Stale-limit: ${this.staleLimit}`);
-    this.updateInterval = staleLimit/2; 
+    this.updateInterval = staleLimit/2;
   }
 
   async create(streams?: string[]): Promise<void> {
@@ -148,7 +148,6 @@ export class HLSMonitor {
       return;
     }
     const manifestLoader = new HTTPManifestLoader();
-    let lastUpdated = this.updateInterval;
     for (const streamUrl of streamUrls) {
       const masterM3U8 = await manifestLoader.load(streamUrl);
       let baseUrl = this.getBaseUrl(streamUrl);
@@ -209,13 +208,13 @@ export class HLSMonitor {
         data.nextIsDiscontinuity = variant.items.PlaylistItem[0].get("discontinuity");
       }
       // validate update interval (Stale manifest)
-      const interval = (Date.now() - data.lastFetch) - lastUpdated;
+      const lastFetch = data.newTime ? data.newTime : data.lastFetch
+      const interval = (Date.now() - lastFetch);
       if (interval > this.staleLimit) {
         error = `[${new Date().toISOString()}] Stale manifest! Expected: ${this.staleLimit}ms Got: ${interval}ms`;
         console.error(`[${baseUrl}]${error}`);
         data.errors.push(error);
       }
-      lastUpdated = 0;
       let currErrors = this.streamData.get(baseUrl).errors;
       currErrors.concat(data.errors);
       this.streamData.set(baseUrl, {
