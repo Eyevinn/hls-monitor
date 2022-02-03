@@ -13,6 +13,7 @@ export class HLSMonitor {
   private state: State;
   private streamData = new Map<string, any>();
   private staleLimit: number;
+  private updateInterval: number;
   private lock = new Mutex();
 
   /**
@@ -28,6 +29,7 @@ export class HLSMonitor {
       this.staleLimit = parseInt(process.env.HLS_MONITOR_INTERVAL || "6000");
     }
     console.log(`Stale-limit: ${this.staleLimit}`);
+    this.updateInterval = staleLimit/2; 
   }
 
   async create(streams?: string[]): Promise<void> {
@@ -38,7 +40,7 @@ export class HLSMonitor {
     while (this.state === State.ACTIVE) {
       try {
         await this.parseManifests(this.streams);
-        await timer(this.staleLimit/2);
+        await timer(this.updateInterval);
       } catch (error) {
         console.error(error);
         this.state = State.INACTIVE;
@@ -146,7 +148,7 @@ export class HLSMonitor {
       return;
     }
     const manifestLoader = new HTTPManifestLoader();
-    let lastUpdated = this.staleLimit / 2;
+    let lastUpdated = this.updateInterval;
     for (const streamUrl of streamUrls) {
       const masterM3U8 = await manifestLoader.load(streamUrl);
       let baseUrl = this.getBaseUrl(streamUrl);
@@ -207,9 +209,9 @@ export class HLSMonitor {
         data.nextIsDiscontinuity = variant.items.PlaylistItem[0].get("discontinuity");
       }
       // validate update interval (Stale manifest)
-      const updateInterval = (Date.now() - data.lastFetch) - lastUpdated;
-      if (updateInterval > this.staleLimit) {
-        error = `[${new Date().toISOString()}] Stale manifest! Expected: ${this.staleLimit}ms Got: ${updateInterval}ms`;
+      const interval = (Date.now() - data.lastFetch) - lastUpdated;
+      if (interval > this.staleLimit) {
+        error = `[${new Date().toISOString()}] Stale manifest! Expected: ${this.staleLimit}ms Got: ${interval}ms`;
         console.error(`[${baseUrl}]${error}`);
         data.errors.push(error);
       }
