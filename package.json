@@ -26,6 +26,7 @@
     "async-mutex": "^0.3.2",
     "fastify": "^3.27.0",
     "fastify-swagger": "^4.13.1",
-    "node-fetch": "^2.6.5"
+    "node-fetch": "^2.6.5",
+    "short-uuid": "^4.2.0"
   }
 }

@@ -15,6 +15,7 @@ export class HLSMonitor {
   private staleLimit: number;
   private updateInterval: number;
   private lock = new Mutex();
+  private id: number;
 
   /**
     * @param hlsStreams The streams to monitor.
@@ -46,6 +47,9 @@ export class HLSMonitor {
         this.state = State.INACTIVE;
       }
     }
+  }
+  getId(): number {
+    return this.id
   }
 
   async getErrors(): Promise<Object[]> {
