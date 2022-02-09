@@ -60,7 +60,7 @@ export class HLSMonitorService {
         .send({ logs: logs });
     });
 
-    this.fastify.get("/monitor/:monitorId/clear-errors", async (request, reply) => {
+    this.fastify.delete("/monitor/:monitorId/clear-errors", async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
@@ -151,8 +151,11 @@ export class HLSMonitorService {
           message: "monitor not initialized",
         });
       }
-      this.hlsMonitors.delete[request.params.monitorId]
-      reply.send({ status: "monitor deleted" });
+      if (this.hlsMonitors.delete(request.params.monitorId)){
+        reply.send({ status: "monitor deleted" });
+      } else{
+        reply.code(500).send({status: "error", message: "faild to delete monitor"})
+      }
 
     });
 

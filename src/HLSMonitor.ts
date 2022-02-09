@@ -159,7 +159,14 @@ export class HLSMonitor {
       let data = this.streamData.get(baseUrl);
       let error: string;
       for (const mediaM3U8 of masterM3U8.items.StreamItem) {
-        const variant = await manifestLoader.load(`${baseUrl}${mediaM3U8.get("uri")}`);
+        let variant;
+        try {
+          variant = await manifestLoader.load(`${baseUrl}${mediaM3U8.get("uri")}`)
+        } catch (error) {
+          release();
+          return error
+        }
+          
         let equalMseq = false;
         const bw = variant.get("bandwidth");
         const currTime = new Date().toISOString();
