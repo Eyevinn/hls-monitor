@@ -60,7 +60,7 @@ Available endpoints are:
 
 `GET` /monitor/:monitorId/status
 
-`DELETE` /monitor/:monitorId/clear-errors
+`DELETE` /monitor/:monitorId/status
 
 `GET` /monitor/:monitorId/streams
 

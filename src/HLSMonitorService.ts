@@ -60,7 +60,7 @@ export class HLSMonitorService {
         .send({ logs: logs });
     });
 
-    this.fastify.delete("/monitor/:monitorId/clear-errors", async (request, reply) => {
+    this.fastify.delete("/monitor/:monitorId/status", async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
