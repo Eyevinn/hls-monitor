@@ -74,7 +74,7 @@ export class HLSMonitorService {
         .send({ message: "Cleared errors" });
     });
 
-    this,this.fastify.post("/monitor", async (request, reply) => {
+    this.fastify.post("/monitor", async (request, reply) => {
       let uuid = shortUUID.generate();
       while(this.hlsMonitors.has(uuid)) {
         uuid = shortUUID.generate();
@@ -88,7 +88,6 @@ export class HLSMonitorService {
       }
       monitor.create();
       this.hlsMonitors.set(uuid,monitor)
-      console.log(this.monitors)
       const rep = {
         status: "Created a new hls-monitor",
         streams: body["streams"]
@@ -103,7 +102,7 @@ export class HLSMonitorService {
         .send(rep);
     });
 
-    this,this.fastify.get("/monitor", async (request, reply) => {
+    this.fastify.get("/monitor", async (request, reply) => {
       if (!this.hlsMonitors) {
         reply.code(500).send({
           status: "error",
@@ -117,7 +116,7 @@ export class HLSMonitorService {
       .send(JSON.stringify(Object.fromEntries(this.monitors)));
     });
 
-    this,this.fastify.get("/monitor/:monitorId/streams", async (request, reply) => {
+    this.fastify.get("/monitor/:monitorId/streams", async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
@@ -127,7 +126,7 @@ export class HLSMonitorService {
       reply.send({ streams: this.hlsMonitors.get(request.parms.monitorId).getStreamUrls() });
     });
 
-    this,this.fastify.put("/monitor/:monitorId", async (request, reply) => {
+    this.fastify.put("/monitor/:monitorId", async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
@@ -144,19 +143,19 @@ export class HLSMonitorService {
         });
     });
 
-    this,this.fastify.delete("/monitor/:monitorId", async (request, reply) => {
-      if (!this.hlsMonitors.has(request.params.monitorId)) {
+    this.fastify.delete("/monitor", async (request, reply) => {
+      const body = request.body;
+      if (!this.hlsMonitors.has(body["monitorId"])) {
         reply.code(500).send({
           status: "error",
           message: "monitor not initialized",
         });
       }
-      if (this.hlsMonitors.delete(request.params.monitorId)){
+      if (this.hlsMonitors.delete(body["monitorId"])){
         reply.send({ status: "monitor deleted" });
       } else{
         reply.code(500).send({status: "error", message: "faild to delete monitor"})
       }
-
     });
 
     this.fastify.get("/healthcheck", async (request, reply) => {
@@ -194,20 +193,20 @@ export class HLSMonitorService {
         .send({ status: "Started monitoring" });
     });
 
-    this.fastify.put("/monitor/:monitorId/delete", async (request, reply) => {
+    this.fastify.delete("/monitor/:monitorId", async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
           message: "monitor not initialized",
         });
       }
-      const stream = request.body;
-      const resp = await this.hlsMonitors.get(request.params.monitorId).remove(stream);
+      const streams = request.body["streams"];
+      const resp = await this.hlsMonitors.get(request.params.monitorId).remove(streams);
       reply
         .code(201)
         .header('Content-Type', 'application/json; charset=utf-8')
         .send({ 
-          message: "Deleted stream", 
+          message: "Deleted stream. Remaining streams:", 
           streams: resp
         });
     });
