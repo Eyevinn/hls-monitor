@@ -56,6 +56,8 @@ Available endpoints are:
 
 `GET` /monitor
 
+`DELETE`/monitor
+
 `PUT` /monitor/:monitorId/delete
 
 `GET` /monitor/:monitorId/status
@@ -63,6 +65,8 @@ Available endpoints are:
 `DELETE` /monitor/:monitorId/status
 
 `GET` /monitor/:monitorId/streams
+
+`PUT`/monitor/:monitorId/streams
 
 `GET` /healthcheck
 

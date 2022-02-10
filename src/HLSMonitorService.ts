@@ -126,7 +126,7 @@ export class HLSMonitorService {
       reply.send({ streams: this.hlsMonitors.get(request.parms.monitorId).getStreamUrls() });
     });
 
-    this.fastify.put("/monitor/:monitorId", async (request, reply) => {
+    this.fastify.put("/monitor/:monitorId/streams", async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
