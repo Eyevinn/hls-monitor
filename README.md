@@ -52,21 +52,27 @@ To stop monitoring a specific stream do a `PUT` to
 
 Available endpoints are: 
 
-`PUT` /create
+`POST` /monitor
 
-`PUT` /delete
+`GET` /monitor
 
-`GET` /status
+`DELETE`/monitor
 
-`GET` /clear-errors
+`DELETE` /monitor/:monitorId
 
-`GET` /streams
+`GET` /monitor/:monitorId/status
+
+`DELETE` /monitor/:monitorId/status
+
+`GET` /monitor/:monitorId/streams
+
+`PUT`/monitor/:monitorId/streams
 
 `GET` /healthcheck
 
-`GET` /start
+`POST` /monitor/:monitorId/start
 
-`GET` /stop
+`POST` /monitor/:monitorId/stop
 
 The `HLSMonitorService` can also be controlled through code:
 
