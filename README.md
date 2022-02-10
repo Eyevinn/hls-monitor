@@ -58,7 +58,7 @@ Available endpoints are:
 
 `DELETE`/monitor
 
-`PUT` /monitor/:monitorId/delete
+`DELETE` /monitor/:monitorId
 
 `GET` /monitor/:monitorId/status
 
