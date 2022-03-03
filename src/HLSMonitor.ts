@@ -88,14 +88,14 @@ export class HLSMonitor {
   async start() {
     if (this.state === State.ACTIVE) return;
     await this.reset();
-    console.log("Starting HLSMonitor");
+    console.log(`Starting HLSMonitor: ${this.id}`);
     this.create();
   }
 
   async stop() {
     if (this.state === State.INACTIVE) return;
     this.state = State.INACTIVE;
-    console.log("HLSMonitor stopped");
+    console.log(`HLSMonitor stopped: ${this.id}`);
   }
 
   /**
@@ -112,6 +112,7 @@ export class HLSMonitor {
       }
     }
     release();
+    console.log(`List of streams updated for ${this.id}. Current streams ${this.streams}`)
     return this.streams;
   }
 
@@ -127,6 +128,7 @@ export class HLSMonitor {
         this.streams.splice(this.streams.indexOf(stream), 1);
         const baseUrl = this.getBaseUrl(stream);
         this.streamData.delete(baseUrl);
+        console.log(`Removed stream: ${baseUrl} from monitor: ${this.id}`)
       }
     }
     release();
@@ -235,6 +237,7 @@ export class HLSMonitor {
         lastFetch: data.newTime ? data.newTime : data.lastFetch,
         errors: currErrors,
       });
+      error ? console.log(`[${new Date().toISOString()}] Master manifest paresed with error: ${this.getBaseUrl(streamUrl)}`) : console.log(`[${new Date().toISOString()}] Master manifest succefully paresed: ${this.getBaseUrl(streamUrl)}`);
       release();
     }
   }
