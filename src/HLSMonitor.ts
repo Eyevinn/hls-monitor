@@ -52,6 +52,24 @@ export class HLSMonitor {
     this.id = id;
   }
 
+  /**
+   * Function used for unit testing purposes
+   */
+  async incrementMonitor(streams?: string[]) {
+    if (streams) {
+      await this.update(streams);
+    }
+    this.state = State.ACTIVE;
+    if (this.state === State.ACTIVE) {
+      try {
+        await this.parseManifests(this.streams);
+      } catch (error) {
+        console.error(error);
+        this.state = State.INACTIVE;
+      }
+    }
+  }
+
   async create(streams?: string[]): Promise<void> {
     if (streams) {
       await this.update(streams);
