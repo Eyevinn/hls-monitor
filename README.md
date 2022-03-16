@@ -22,7 +22,7 @@ hlsMonitorService.listen(3000);
 The monitor service is now up and running and available on port `3000`.
 A basic Swagger doc can be accessed via `hls-monitor-endpoint/docs`
 
-Start monitoring a new stream by doing a `PUT` to `hls-monitor-endpoint/create` with the following payload: 
+Start monitoring a new stream by doing a `POST` to `hls-monitor-endpoint/monitor` with the following payload: 
 
 ```json
 {
@@ -39,7 +39,7 @@ It's also possible to set the interval (in milliseconds) for when a manifest sho
 }
 ```
 
-To get the latest error do a `GET` to `hls-monitor-endpoint/status`. 
+To get the latest error do a `GET` to `hls-monitor-endpoint/monitor/:monitorId/status`. 
 
 To stop monitoring a specific stream do a `PUT` to 
 `hls-monitor-endpoint/delete` with the following payload:
