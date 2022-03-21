@@ -4,7 +4,6 @@
   "description": "Library to monitor a hls stream(s)",
   "main": "dist/index.js",
   "scripts": {
-    "init_test": "jasmine init",
     "build": "tsc --project ./",
     "postversion": "git push && git push --tags",
     "test": "ts-node node_modules/jasmine/bin/jasmine"
