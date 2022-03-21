@@ -9,14 +9,40 @@ export enum State {
   INACTIVE = "inactive",
 }
 
-type TStreamData = {
+type SegmentURI = string;
+
+type M3UItem = {
+  get: (key: string) => string | any;
+  set: (key: string, value: string) => void;
+};
+
+type M3U = {
+  items: {
+    PlaylistItem: M3UItem[];
+    StreamItem: M3UItem[];
+    IframeStreamItem: M3UItem[];
+    MediaItem: M3UItem[];
+  };
+  properties: {};
+  toString(): string;
+  get(key: any): any;
+  set(key: any, value: any): void;
+  serialize(): any;
+  unserialize(): any;
+};
+
+type VariantData = {
   mediaSequence?: number;
   newMediaSequence?: number;
-  fileSequences?: string[];
-  newfileSequences?: string[];
+  fileSequences?: SegmentURI[];
+  newFileSequences?: SegmentURI[];
   discontinuitySequence?: number;
   newDiscontinuitySequence?: number;
   nextIsDiscontinuity?: boolean;
+  prevM3U?: M3U;
+};
+type StreamData = {
+  variants?: { [bandwidth: number]: VariantData };
   lastFetch?: number;
   newTime?: number;
   errors?: string[];
@@ -25,7 +51,7 @@ type TStreamData = {
 export class HLSMonitor {
   private streams: string[] = [];
   private state: State;
-  private streamData = new Map<string, TStreamData>();
+  private streamData = new Map<string, StreamData>();
   private staleLimit: number;
   private updateInterval: number;
   private lock = new Mutex();
@@ -193,13 +219,25 @@ export class HLSMonitor {
     }
     const manifestLoader = new HTTPManifestLoader();
     for (const streamUrl of streamUrls) {
-      const masterM3U8 = await manifestLoader.load(streamUrl);
+      let masterM3U8: M3U;
+      try {
+        masterM3U8 = await manifestLoader.load(streamUrl);
+      } catch (error) {
+        console.error(error);
+        console.log("Failed to fetch stream url:", streamUrl);
+        continue;
+      }
       let baseUrl = this.getBaseUrl(streamUrl);
       let release = await this.lock.acquire();
-      let data = this.streamData.get(baseUrl);
+      let data: StreamData = this.streamData.get(baseUrl);
+      if (!data) {
+        data = {
+          variants: {},
+        };
+      }
       let error: string;
       for (const mediaM3U8 of masterM3U8.items.StreamItem) {
-        let variant;
+        let variant: M3U;
         try {
           variant = await manifestLoader.load(`${baseUrl}${mediaM3U8.get("uri")}`);
         } catch (error) {
@@ -207,90 +245,150 @@ export class HLSMonitor {
           return error;
         }
         let equalMseq = false;
-        const bw = mediaM3U8.get("bandwidth");
+        const bw: number = mediaM3U8.get("bandwidth");
         const currTime = new Date().toISOString();
-        if (!data) {
-          this.streamData.set(baseUrl, {
-            mediaSequence: variant.get("mediaSequence"),
-            newMediaSequence: 0,
-            fileSequences: [],
-            newfileSequences: [],
-            discontinuitySequence: 0,
-            newDiscontinuitySequence: variant.get("discontinuitySequence"),
-            nextIsDiscontinuity: false,
-            lastFetch: Date.now(),
-            newTime: Date.now(),
-            errors: [],
-          });
-          data = this.streamData.get(baseUrl);
+        if (!data.variants[bw]) {
+          data.variants[bw] = {
+            mediaSequence: null,
+            newMediaSequence: null,
+            fileSequences: null,
+            newFileSequences: null,
+            discontinuitySequence: null,
+            newDiscontinuitySequence: null,
+            nextIsDiscontinuity: null,
+            prevM3U: null,
+          };
+          data.variants[bw].mediaSequence = variant.get("mediaSequence");
+          data.variants[bw].newMediaSequence = 0;
+          data.variants[bw].fileSequences = variant.items.PlaylistItem.map((segItem) => segItem.get("uri"));
+          data.variants[bw].newFileSequences = variant.items.PlaylistItem.map((segItem) => segItem.get("uri"));
+          data.variants[bw].discontinuitySequence = variant.get("discontinuitySequence");
+          data.variants[bw].newDiscontinuitySequence = variant.get("discontinuitySequence");
+          data.variants[bw].nextIsDiscontinuity = false;
+          data.variants[bw].prevM3U = variant;
+          data.lastFetch = Date.now();
+          data.newTime = Date.now();
+          data.errors = [];
+          this.streamData.set(baseUrl, data);
           continue;
         }
         // Validate mediaSequence
-        if (data.mediaSequence > variant.get("mediaSequence")) {
-          error = `[${currTime}] Error in mediaSequence! (BW:${bw}) Expected mediaSequence >= ${data.mediaSequence}. Got: ${variant.get("mediaSequence")}`;
+        if (data.variants[bw].mediaSequence > variant.get("mediaSequence")) {
+          error = `[${currTime}] Error in mediaSequence! (BW:${bw}) Expected mediaSequence >= ${data.variants[bw].mediaSequence}. Got: ${variant.get("mediaSequence")}`;
           console.error(`[${baseUrl}]${error}`);
           data.errors.push(error);
           continue;
-        } else if (data.mediaSequence === variant.get("mediaSequence")) {
-          data.newMediaSequence = data.mediaSequence;
+        } else if (data.variants[bw].mediaSequence === variant.get("mediaSequence")) {
+          data.variants[bw].newMediaSequence = data.variants[bw].mediaSequence;
           equalMseq = true;
         } else {
-          data.newMediaSequence = variant.get("mediaSequence");
+          data.variants[bw].newMediaSequence = variant.get("mediaSequence");
           data.newTime = Date.now();
         }
         // Validate playlist
-        const currentSegUriList = variant.items.PlaylistItem.map((segItem) => segItem.get("uri"));
-        if (equalMseq) {
+        const currentSegUriList: SegmentURI[] = variant.items.PlaylistItem.map((segItem) => segItem.get("uri"));
+        if (equalMseq && data.variants[bw].fileSequences.length > 0) {
           // Validate playlist Size
-          if (data.fileSequences.length !== currentSegUriList.length) {
-            error = `[${currTime}] Error in playlist! (BW:${bw}) Expected playlist size in mseq(${variant.get("mediaSequence")}) to be: ${data.fileSequences.length}. Got: ${currentSegUriList.length}`;
+          if (data.variants[bw].fileSequences.length !== currentSegUriList.length) {
+            error = `[${currTime}] Error in playlist! (BW:${bw}) Expected playlist size in mseq(${variant.get("mediaSequence")}) to be: ${
+              data.variants[bw].fileSequences.length
+            }. Got: ${currentSegUriList.length}`;
             console.error(`[${baseUrl}]${error}`);
             data.errors.push(error);
-          }
-          // Validate playlist contents
-          for (let i = 0; i < currentSegUriList.length; i++) {
-            if (data.fileSequences[i] !== currentSegUriList[i]) {
-              error = `[${currTime}] Error in playlist! (BW:${bw}) Expected playlist item-uri in mseq(${variant.get("mediaSequence")}) at index(${i}) to be: '${data.fileSequences[i]}'. Got: '${currentSegUriList[i]}'`;
-              console.error(`[${baseUrl}]${error}`);
-              data.errors.push(error);
-              break;
+          } else {
+            // Validate playlist contents
+            for (let i = 0; i < currentSegUriList.length; i++) {
+              if (data.variants[bw].fileSequences[i] !== currentSegUriList[i]) {
+                error = `[${currTime}] Error in playlist! (BW:${bw}) Expected playlist item-uri in mseq(${variant.get("mediaSequence")}) at index(${i}) to be: '${
+                  data.variants[bw].fileSequences[i]
+                }'. Got: '${currentSegUriList[i]}'`;
+                console.error(`[${baseUrl}]${error}`);
+                data.errors.push(error);
+                break;
+              }
             }
           }
         } else {
           // Validate media sequence and file sequence
-          const mseqDiff = variant.get("mediaSequence") - data.mediaSequence;
-          if (mseqDiff < data.fileSequences.length) {
-            const expectedfileSequences = data.fileSequences[mseqDiff];
+          const mseqDiff = variant.get("mediaSequence") - data.variants[bw].mediaSequence;
+          if (mseqDiff < data.variants[bw].fileSequences.length) {
+            const expectedfileSequences = data.variants[bw].fileSequences[mseqDiff];
             if (currentSegUriList[0] !== expectedfileSequences) {
-              error = `[${currTime}] Error in playlist! (BW:${bw}) Expected first item-uri in mseq(${variant.get("mediaSequence")}) to be: '${expectedfileSequences}'. Got: '${currentSegUriList[0]}'`;
+              error = `[${currTime}] Error in playlist! (BW:${bw}) Faulty Segment Continuity! Expected first item-uri in mseq(${variant.get(
+                "mediaSequence"
+              )}) to be: '${expectedfileSequences}'. Got: '${currentSegUriList[0]}'`;
               console.error(`[${baseUrl}]${error}`);
               data.errors.push(error);
             }
           }
         }
 
-        data.newfileSequences = currentSegUriList;
+        // Update newFileSequence...
+        data.variants[bw].newFileSequences = currentSegUriList;
 
         // Validate discontinuitySequence
-        if (data.nextIsDiscontinuity) {
-          const mseqDiff = variant.get("mediaSequence") - data.mediaSequence;
-          const expectedDseq = data.discontinuitySequence + 1;
-          // Warn: Assuming that only ONE disc-tag has been removed between media-sequences
-          if (mseqDiff === 1 && expectedDseq !== variant.get("discontinuitySequence")) {
-            error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Wrong count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${expectedDseq}. Got: ${variant.get("discontinuitySequence")}`;
-            console.error(`[${baseUrl}]${error}`);
-            data.errors.push(error);
+        const discontinuityOnTopItem = variant.items.PlaylistItem[0].get("discontinuity");
+        if (!discontinuityOnTopItem) {
+          // Tag could have been removed, see if count is correct...
+          if (data.variants[bw].nextIsDiscontinuity) {
+            const mseqDiff = variant.get("mediaSequence") - data.variants[bw].mediaSequence;
+            const expectedDseq = data.variants[bw].discontinuitySequence + 1;
+            // Warn: Assuming that only ONE disc-tag has been removed between media-sequences
+            if (mseqDiff === 1 && expectedDseq !== variant.get("discontinuitySequence")) {
+              error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Wrong count increment in mseq(${variant.get(
+                "mediaSequence"
+              )}) - Expected: ${expectedDseq}. Got: ${variant.get("discontinuitySequence")}`;
+              console.error(`[${baseUrl}]${error}`);
+              data.errors.push(error);
+            }
+          } else {
+            // Case where mseq stepped larger than 1. Check if dseq incremented properly
+            if (data.variants[bw].discontinuitySequence !== variant.get("discontinuitySequence")) {
+              const dseqDiff = variant.get("discontinuitySequence") - data.variants[bw].discontinuitySequence;
+              const mseqDiff = variant.get("mediaSequence") - data.variants[bw].mediaSequence;
+              let foundDiscCount = 0;
+              // dseq step should match amount of disc-tags found in prev mseq playlist
+              for (let i = 0; i < mseqDiff + 1; i++) {
+                let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
+                if (segHasDisc) {
+                  foundDiscCount++;
+                }
+              }
+              if (dseqDiff !== foundDiscCount) {
+                error = `[${currTime}] Error in discontinuitySequence! (BW:${bw})- Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
+                  data.variants[bw].discontinuitySequence
+                }. Got: ${variant.get("discontinuitySequence")}\nNEW:\n${variant.toString()}\nPREV:\n${data.variants[bw].prevM3U.toString()}`;
+                console.error(`[${baseUrl}]${error}`);
+                data.errors.push(error);
+              }
+            }
           }
         } else {
           // If the count increments too early...
-          if (data.discontinuitySequence !== variant.get("discontinuitySequence")) {
-            error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${data.discontinuitySequence}. Got: ${variant.get("discontinuitySequence")}`;
+          if (data.variants[bw].discontinuitySequence !== variant.get("discontinuitySequence")) {
+            error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
+              data.variants[bw].discontinuitySequence
+            }. Got: ${variant.get("discontinuitySequence")}`;
             console.error(`[${baseUrl}]${error}`);
             data.errors.push(error);
           }
         }
-        data.newDiscontinuitySequence = variant.get("discontinuitySequence");
-        data.nextIsDiscontinuity = variant.items.PlaylistItem[0].get("discontinuity");
+        // Determine if discontinuity tag could be removed next increment.
+        data.variants[bw].newDiscontinuitySequence = variant.get("discontinuitySequence");
+        if (variant.items.PlaylistItem[0].get("discontinuity")) {
+          data.variants[bw].nextIsDiscontinuity = true;
+        } else {
+          if (variant.items.PlaylistItem[1].get("discontinuity")) {
+            data.variants[bw].nextIsDiscontinuity = true;
+          }
+          data.variants[bw].nextIsDiscontinuity = false;
+        }
+        // Update Sequence counts...
+        data.variants[bw].mediaSequence = data.variants[bw].newMediaSequence;
+        data.variants[bw].fileSequences = data.variants[bw].newFileSequences;
+        data.variants[bw].nextIsDiscontinuity = data.variants[bw].nextIsDiscontinuity ? data.variants[bw].nextIsDiscontinuity : false;
+        data.variants[bw].discontinuitySequence = data.variants[bw].newDiscontinuitySequence;
+        data.variants[bw].prevM3U = variant;
       }
       // validate update interval (Stale manifest)
       const lastFetch = data.newTime ? data.newTime : data.lastFetch;
@@ -303,14 +401,14 @@ export class HLSMonitor {
       let currErrors = this.streamData.get(baseUrl).errors;
       currErrors.concat(data.errors);
       this.streamData.set(baseUrl, {
-        mediaSequence: data.newMediaSequence,
-        fileSequences: data.newfileSequences,
-        nextIsDiscontinuity: data.nextIsDiscontinuity ? data.nextIsDiscontinuity : false,
-        discontinuitySequence: data.newDiscontinuitySequence,
+        variants: data.variants,
         lastFetch: data.newTime ? data.newTime : data.lastFetch,
         errors: currErrors,
       });
-      error ? console.log(`[${new Date().toISOString()}] Master manifest paresed with error: ${this.getBaseUrl(streamUrl)}`) : console.log(`[${new Date().toISOString()}] Master manifest succefully paresed: ${this.getBaseUrl(streamUrl)}`);
+      if (error) {
+        console.log(`[${new Date().toISOString()}] Master manifest loaded with error: ${this.getBaseUrl(streamUrl)}`);
+      }
+      // : console.log(`[${new Date().toISOString()}] Master manifest succefully loaded: ${this.getBaseUrl(streamUrl)}`);
       release();
     }
   }
