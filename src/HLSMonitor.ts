@@ -1,7 +1,6 @@
 import { HTTPManifestLoader } from "./ManifestLoader";
 import { Mutex } from "async-mutex";
 const { v4: uuidv4 } = require("uuid");
-const clone = require("clone");
 
 const timer = (ms) => new Promise((res) => setTimeout(res, ms));
 export enum State {
