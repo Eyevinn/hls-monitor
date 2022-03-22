@@ -1,6 +1,7 @@
 import { HTTPManifestLoader } from "./ManifestLoader";
 import { Mutex } from "async-mutex";
 const { v4: uuidv4 } = require("uuid");
+const clone = require("clone");
 
 const timer = (ms) => new Promise((res) => setTimeout(res, ms));
 export enum State {
@@ -309,18 +310,18 @@ export class HLSMonitor {
             }
           }
         } else {
-          // Validate media sequence and file sequence
-          const mseqDiff = variant.get("mediaSequence") - data.variants[bw].mediaSequence;
-          if (mseqDiff < data.variants[bw].fileSequences.length) {
-            const expectedfileSequences = data.variants[bw].fileSequences[mseqDiff];
-            if (currentSegUriList[0] !== expectedfileSequences) {
-              error = `[${currTime}] Error in playlist! (BW:${bw}) Faulty Segment Continuity! Expected first item-uri in mseq(${variant.get(
-                "mediaSequence"
-              )}) to be: '${expectedfileSequences}'. Got: '${currentSegUriList[0]}'`;
-              console.error(`[${baseUrl}]${error}`);
-              data.errors.push(error);
-            }
-          }
+          // // Validate media sequence and file sequence
+          // const mseqDiff = variant.get("mediaSequence") - data.variants[bw].mediaSequence;
+          // if (mseqDiff < data.variants[bw].fileSequences.length) {
+          //   const expectedfileSequences = data.variants[bw].fileSequences[mseqDiff];
+          //   if (currentSegUriList[0] !== expectedfileSequences) {
+          //     error = `[${currTime}] Error in playlist! (BW:${bw}) Faulty Segment Continuity! Expected first item-uri in mseq(${variant.get(
+          //       "mediaSequence"
+          //     )}) to be: '${expectedfileSequences}'. Got: '${currentSegUriList[0]}'`;
+          //     console.error(`[${baseUrl}]${error}`);
+          //     data.errors.push(error);
+          //   }
+          // }
         }
 
         // Update newFileSequence...
@@ -357,7 +358,7 @@ export class HLSMonitor {
               if (dseqDiff !== foundDiscCount) {
                 error = `[${currTime}] Error in discontinuitySequence! (BW:${bw})- Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
                   data.variants[bw].discontinuitySequence
-                }. Got: ${variant.get("discontinuitySequence")}\nNEW:\n${variant.toString()}\nPREV:\n${data.variants[bw].prevM3U.toString()}`;
+                }. Got: ${variant.get("discontinuitySequence")}`;
                 console.error(`[${baseUrl}]${error}`);
                 data.errors.push(error);
               }
@@ -407,8 +408,9 @@ export class HLSMonitor {
       });
       if (error) {
         console.log(`[${new Date().toISOString()}] Master manifest loaded with error: ${this.getBaseUrl(streamUrl)}`);
+      } else {
+        // console.log(`[${new Date().toISOString()}] Master manifest succefully loaded: ${this.getBaseUrl(streamUrl)}`);
       }
-      // : console.log(`[${new Date().toISOString()}] Master manifest succefully loaded: ${this.getBaseUrl(streamUrl)}`);
       release();
     }
   }

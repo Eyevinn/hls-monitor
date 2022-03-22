@@ -35,7 +35,7 @@ describe("HLSMonitor,", () => {
       mockMseq = 0;
     });
 
-    it("should return error if: next mseq starts on wrong segment", async () => {
+    xit("should return error if: next mseq starts on wrong segment", async () => {
       // Arrange
       mockHLSMediaM3u8Sequence = mockHLSMediaM3u8Sequences[0];
       const STALE_LIMIT = 8000;
