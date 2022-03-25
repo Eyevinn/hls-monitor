@@ -853,7 +853,7 @@ const mockSequence10: TMockSequence = [
       #EXTINF:10.000,
       nextvod_0_0.ts
       #EXT-X-DISCONTINUITY
-      #EXT-X-CUE:OUT
+      #EXT-X-CUE-OUT:DURATION=136
       #EXTINF:10.000,
       live_0_0.ts`,
     1: `#EXTM3U
@@ -870,7 +870,7 @@ const mockSequence10: TMockSequence = [
       #EXTINF:10.000,
       nextvod_0_0.ts
       #EXT-X-DISCONTINUITY
-      #EXT-X-CUE:OUT
+      #EXT-X-CUE-OUT:DURATION=136
       #EXTINF:10.000,
       live_0_0.ts
       #EXTINF:10.000,
@@ -881,7 +881,7 @@ const mockSequence10: TMockSequence = [
       #EXT-X-MEDIA-SEQUENCE:23
       #EXT-X-DISCONTINUITY-SEQUENCE:12
       #EXT-X-DISCONTINUITY
-      #EXT-X-CUE:OUT
+      #EXT-X-CUE-OUT:DURATION=136
       #EXTINF:10.000,
       live_0_0.ts
       #EXTINF:10.000,
@@ -922,7 +922,7 @@ const mockSequence10: TMockSequence = [
       #EXTINF:10.000,
       nextvod_1_0.ts
       #EXT-X-DISCONTINUITY
-      #EXT-X-CUE:OUT
+      #EXT-X-CUE-OUT:DURATION=136
       #EXTINF:10.000,
       live_1_0.ts`,
     1: `#EXTM3U
@@ -939,7 +939,7 @@ const mockSequence10: TMockSequence = [
       #EXTINF:10.000,
       nextvod_1_0.ts
       #EXT-X-DISCONTINUITY
-      #EXT-X-CUE:OUT
+      #EXT-X-CUE-OUT:DURATION=136
       #EXTINF:10.000,
       live_1_0.ts
       #EXTINF:10.000,
@@ -950,7 +950,7 @@ const mockSequence10: TMockSequence = [
       #EXT-X-MEDIA-SEQUENCE:23
       #EXT-X-DISCONTINUITY-SEQUENCE:12
       #EXT-X-DISCONTINUITY
-      #EXT-X-CUE:OUT
+      #EXT-X-CUE-OUT:DURATION=136
       #EXTINF:10.000,
       live_1_0.ts
       #EXTINF:10.000,
