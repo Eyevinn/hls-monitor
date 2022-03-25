@@ -35,7 +35,7 @@ describe("HLSMonitor,", () => {
       mockMseq = 0;
     });
 
-    xit("should return error if: next mseq starts on wrong segment", async () => {
+    it("should return error if: next mseq starts on wrong segment", async () => {
       // Arrange
       mockHLSMediaM3u8Sequence = mockHLSMediaM3u8Sequences[0];
       const STALE_LIMIT = 8000;
@@ -52,7 +52,7 @@ describe("HLSMonitor,", () => {
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
       const expectedError = "Error in playlist! (BW:1212000) Faulty Segment Continuity! Expected first item-uri in mseq(2) to be: 'index_0_2.ts'. Got: 'index_0_1.ts'";
-      console.log(JSON.stringify(MonitoredErrors[0]["errors"], null, 2));
+      //console.log(JSON.stringify(MonitoredErrors[0]["errors"], null, 2));
       expect(MonitoredErrors[0]["errors"][0]).toContain(expectedError);
     });
 
@@ -93,10 +93,14 @@ describe("HLSMonitor,", () => {
       mockMseq++;
       await hls_monitor.incrementMonitor(STREAMS);
       mockMseq++;
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
       await hls_monitor.stop();
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
-      const expectedError = "Error in playlist! (BW:1212000) Expected playlist size in mseq(12) to be: 3. Got: 4";
+      const expectedError = "Error in playlist! (BW:1212000) Expected playlist size in mseq(13) to be: 5. Got: 4";
       expect(MonitoredErrors[0]["errors"][0]).toContain(expectedError);
     });
 
@@ -206,8 +210,47 @@ describe("HLSMonitor,", () => {
       await hls_monitor.stop();
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
-      const expectedError = "Error in discontinuitySequence! (BW:2424000)- Early count increment in mseq(21) - Expected: 10. Got: 11";
+      const expectedError = "Error in discontinuitySequence! (BW:2424000) Early count increment in mseq(21) - Expected: 10. Got: 11";
       expect(MonitoredErrors[0]["errors"][1]).toContain(expectedError);
+    });
+
+    it("should return error if: next mseq does not increment discontinuity-sequence correctly, early increment (tag under top) 2nd case", async () => {
+      // Arrange
+      mockHLSMediaM3u8Sequence = mockHLSMediaM3u8Sequences[8];
+      const STALE_LIMIT = 8000;
+      const STREAMS = [mockLiveUri];
+      const hls_monitor = new HLSMonitor(STREAMS, STALE_LIMIT);
+      // Act
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
+      await hls_monitor.stop();
+      const MonitoredErrors = await hls_monitor.getErrors();
+      // Assert
+      expect(MonitoredErrors).toEqual([]);
+    });
+
+    
+    it("should return error if: next mseq does not increment discontinuity-sequence correctly, early increment (tag under top) 3rd case", async () => {
+      // Arrange
+      mockHLSMediaM3u8Sequence = mockHLSMediaM3u8Sequences[9];
+      const STALE_LIMIT = 8000;
+      const STREAMS = [mockLiveUri];
+      const hls_monitor = new HLSMonitor(STREAMS, STALE_LIMIT);
+      // Act
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
+      await hls_monitor.stop();
+      const MonitoredErrors = await hls_monitor.getErrors();
+      // Assert
+      expect(MonitoredErrors).toEqual([]);
     });
   });
 });
