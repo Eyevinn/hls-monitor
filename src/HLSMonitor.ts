@@ -299,12 +299,17 @@ export class HLSMonitor {
             // Validate playlist contents
             for (let i = 0; i < currentSegUriList.length; i++) {
               if (data.variants[bw].fileSequences[i] !== currentSegUriList[i]) {
-                error = `[${currTime}] Error in playlist! (BW:${bw}) Expected playlist item-uri in mseq(${variant.get("mediaSequence")}) at index(${i}) to be: '${
-                  data.variants[bw].fileSequences[i]
-                }'. Got: '${currentSegUriList[i]}'`;
-                console.error(`[${baseUrl}]${error}`);
-                data.errors.push(error);
-                break;
+                // [!] Compare the end of filename instead...
+                let shouldBeSegURI = new URL("http://.mock.com/" + data.variants[bw].fileSequences[i]).pathname.slice(-5);
+                let newSegURI = new URL("http://.mock.com/" + currentSegUriList[i]).pathname.slice(-5);
+                if (newSegURI !== shouldBeSegURI) {
+                  error = `[${currTime}] Error in playlist! (BW:${bw}) Expected playlist item-uri in mseq(${variant.get("mediaSequence")}) at index(${i}) to be: '${
+                    data.variants[bw].fileSequences[i]
+                  }'. Got: '${currentSegUriList[i]}'`;
+                  console.error(`[${baseUrl}]${error}`);
+                  data.errors.push(error);
+                  break;
+                }
               }
             }
           }
