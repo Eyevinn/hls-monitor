@@ -289,13 +289,13 @@ export class HLSMonitor {
         const currentSegUriList: SegmentURI[] = variant.items.PlaylistItem.map((segItem) => segItem.get("uri"));
         if (equalMseq && data.variants[bw].fileSequences.length > 0) {
           // Validate playlist Size
-          if (data.variants[bw].fileSequences.length !== currentSegUriList.length) {
+          if (data.variants[bw].fileSequences.length > currentSegUriList.length) {
             error = `[${currTime}] Error in playlist! (BW:${bw}) Expected playlist size in mseq(${variant.get("mediaSequence")}) to be: ${
               data.variants[bw].fileSequences.length
             }. Got: ${currentSegUriList.length}`;
             console.error(`[${baseUrl}]${error}`);
             data.errors.push(error);
-          } else {
+          } else if (data.variants[bw].fileSequences.length === currentSegUriList.length) {
             // Validate playlist contents
             for (let i = 0; i < currentSegUriList.length; i++) {
               if (data.variants[bw].fileSequences[i] !== currentSegUriList[i]) {
@@ -309,18 +309,30 @@ export class HLSMonitor {
             }
           }
         } else {
-          // // Validate media sequence and file sequence
-          // const mseqDiff = variant.get("mediaSequence") - data.variants[bw].mediaSequence;
-          // if (mseqDiff < data.variants[bw].fileSequences.length) {
-          //   const expectedfileSequences = data.variants[bw].fileSequences[mseqDiff];
-          //   if (currentSegUriList[0] !== expectedfileSequences) {
-          //     error = `[${currTime}] Error in playlist! (BW:${bw}) Faulty Segment Continuity! Expected first item-uri in mseq(${variant.get(
-          //       "mediaSequence"
-          //     )}) to be: '${expectedfileSequences}'. Got: '${currentSegUriList[0]}'`;
-          //     console.error(`[${baseUrl}]${error}`);
-          //     data.errors.push(error);
-          //   }
-          // }
+          // Validate media sequence and file sequence
+          const mseqDiff = variant.get("mediaSequence") - data.variants[bw].mediaSequence;
+          if (mseqDiff < data.variants[bw].fileSequences.length) {
+            const expectedfileSequence = data.variants[bw].fileSequences[mseqDiff];
+
+            // if (currentSegUriList[0] !== expectedfileSequence) {
+            //   error = `[${currTime}] Error in playlist! (BW:${bw}) Faulty Segment Continuity! Expected first item-uri in mseq(${variant.get(
+            //     "mediaSequence"
+            //   )}) to be: '${expectedfileSequence}'. Got: '${currentSegUriList[0]}'`;
+            //   console.error(`[${baseUrl}]${error}`);
+            //   data.errors.push(error);
+            // }
+
+            // [!] Compare the end of filename instead...
+            let shouldBeSegURI = new URL("http://.mock.com/" + expectedfileSequence).pathname.slice(-5);
+            let newSegURI = new URL("http://.mock.com/" + currentSegUriList[0]).pathname.slice(-5);
+            if (newSegURI !== shouldBeSegURI) {
+              error = `[${currTime}] Error in playlist! (BW:${bw}) Faulty Segment Continuity! Expected first item-uri in mseq(${variant.get(
+                "mediaSequence"
+              )}) to be: '${expectedfileSequence}'. Got: '${currentSegUriList[0]}'`;
+              console.error(`[${baseUrl}]${error}`);
+              data.errors.push(error);
+            }
+          }
         }
 
         // Update newFileSequence...
@@ -328,49 +340,38 @@ export class HLSMonitor {
 
         // Validate discontinuitySequence
         const discontinuityOnTopItem = variant.items.PlaylistItem[0].get("discontinuity");
-        if (!discontinuityOnTopItem) {
+        const mseqDiff = variant.get("mediaSequence") - data.variants[bw].mediaSequence;
+
+        if (!discontinuityOnTopItem && data.variants[bw].nextIsDiscontinuity) {
           // Tag could have been removed, see if count is correct...
-          if (data.variants[bw].nextIsDiscontinuity) {
-            const mseqDiff = variant.get("mediaSequence") - data.variants[bw].mediaSequence;
-            const expectedDseq = data.variants[bw].discontinuitySequence + 1;
-            // Warn: Assuming that only ONE disc-tag has been removed between media-sequences
-            if (mseqDiff === 1 && expectedDseq !== variant.get("discontinuitySequence")) {
-              error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Wrong count increment in mseq(${variant.get(
-                "mediaSequence"
-              )}) - Expected: ${expectedDseq}. Got: ${variant.get("discontinuitySequence")}`;
+          const expectedDseq = data.variants[bw].discontinuitySequence + 1;
+          // Warn: Assuming that only ONE disc-tag has been removed between media-sequences
+          if (mseqDiff === 1 && expectedDseq !== variant.get("discontinuitySequence")) {
+            error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Wrong count increment in mseq(${variant.get(
+              "mediaSequence"
+            )}) - Expected: ${expectedDseq}. Got: ${variant.get("discontinuitySequence")}`;
+            console.error(`[${baseUrl}]${error}`);
+            data.errors.push(error);
+          }
+        } else {
+          // Case where mseq stepped larger than 1. Check if dseq incremented properly
+          if (data.variants[bw].discontinuitySequence !== variant.get("discontinuitySequence")) {
+            const dseqDiff = variant.get("discontinuitySequence") - data.variants[bw].discontinuitySequence;
+            let foundDiscCount: number = discontinuityOnTopItem ? -1 : 0;
+            // dseq step should match amount of disc-tags found in prev mseq playlist
+            for (let i = 0; i < mseqDiff + 1; i++) {
+              let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
+              if (segHasDisc) {
+                foundDiscCount++;
+              }
+            }
+            if (dseqDiff !== foundDiscCount) {
+              error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
+                data.variants[bw].discontinuitySequence
+              }. Got: ${variant.get("discontinuitySequence")}`;
               console.error(`[${baseUrl}]${error}`);
               data.errors.push(error);
             }
-          } else {
-            // Case where mseq stepped larger than 1. Check if dseq incremented properly
-            if (data.variants[bw].discontinuitySequence !== variant.get("discontinuitySequence")) {
-              const dseqDiff = variant.get("discontinuitySequence") - data.variants[bw].discontinuitySequence;
-              const mseqDiff = variant.get("mediaSequence") - data.variants[bw].mediaSequence;
-              let foundDiscCount = 0;
-              // dseq step should match amount of disc-tags found in prev mseq playlist
-              for (let i = 0; i < mseqDiff + 1; i++) {
-                let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
-                if (segHasDisc) {
-                  foundDiscCount++;
-                }
-              }
-              if (dseqDiff !== foundDiscCount) {
-                error = `[${currTime}] Error in discontinuitySequence! (BW:${bw})- Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
-                  data.variants[bw].discontinuitySequence
-                }. Got: ${variant.get("discontinuitySequence")}`;
-                console.error(`[${baseUrl}]${error}`);
-                data.errors.push(error);
-              }
-            }
-          }
-        } else {
-          // If the count increments too early...
-          if (data.variants[bw].discontinuitySequence !== variant.get("discontinuitySequence")) {
-            error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
-              data.variants[bw].discontinuitySequence
-            }. Got: ${variant.get("discontinuitySequence")}`;
-            console.error(`[${baseUrl}]${error}`);
-            data.errors.push(error);
           }
         }
         // Determine if discontinuity tag could be removed next increment.
