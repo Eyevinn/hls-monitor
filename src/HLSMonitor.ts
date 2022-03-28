@@ -9,6 +9,8 @@ export enum State {
   INACTIVE = "inactive",
 }
 
+const ERROR_LIMIT = 10 || process.env.ERROR_LIMIT;
+
 type SegmentURI = string;
 
 type M3UItem = {
@@ -276,7 +278,12 @@ export class HLSMonitor {
         if (data.variants[bw].mediaSequence > variant.get("mediaSequence")) {
           error = `[${currTime}] Error in mediaSequence! (BW:${bw}) Expected mediaSequence >= ${data.variants[bw].mediaSequence}. Got: ${variant.get("mediaSequence")}`;
           console.error(`[${baseUrl}]${error}`);
-          data.errors.push(error);
+          if (data.errors.length < ERROR_LIMIT) {
+            data.errors.push(error);
+          } else if (data.errors.length > 0) {
+            data.errors.shift();
+            data.errors.push(error);
+          }
           continue;
         } else if (data.variants[bw].mediaSequence === variant.get("mediaSequence")) {
           data.variants[bw].newMediaSequence = data.variants[bw].mediaSequence;
@@ -294,7 +301,12 @@ export class HLSMonitor {
               data.variants[bw].fileSequences.length
             }. Got: ${currentSegUriList.length}`;
             console.error(`[${baseUrl}]${error}`);
-            data.errors.push(error);
+            if (data.errors.length < ERROR_LIMIT) {
+              data.errors.push(error);
+            } else if (data.errors.length > 0) {
+              data.errors.shift();
+              data.errors.push(error);
+            }
           } else if (data.variants[bw].fileSequences.length === currentSegUriList.length) {
             // Validate playlist contents
             for (let i = 0; i < currentSegUriList.length; i++) {
@@ -307,7 +319,12 @@ export class HLSMonitor {
                     data.variants[bw].fileSequences[i]
                   }'. Got: '${currentSegUriList[i]}'`;
                   console.error(`[${baseUrl}]${error}`);
-                  data.errors.push(error);
+                  if (data.errors.length < ERROR_LIMIT) {
+                    data.errors.push(error);
+                  } else if (data.errors.length > 0) {
+                    data.errors.shift();
+                    data.errors.push(error);
+                  }
                   break;
                 }
               }
@@ -335,7 +352,12 @@ export class HLSMonitor {
                 "mediaSequence"
               )}) to be: '${expectedfileSequence}'. Got: '${currentSegUriList[0]}'`;
               console.error(`[${baseUrl}]${error}`);
-              data.errors.push(error);
+              if (data.errors.length < ERROR_LIMIT) {
+                data.errors.push(error);
+              } else if (data.errors.length > 0) {
+                data.errors.shift();
+                data.errors.push(error);
+              }
             }
           }
         }
@@ -356,7 +378,12 @@ export class HLSMonitor {
               "mediaSequence"
             )}) - Expected: ${expectedDseq}. Got: ${variant.get("discontinuitySequence")}`;
             console.error(`[${baseUrl}]${error}`);
-            data.errors.push(error);
+            if (data.errors.length < ERROR_LIMIT) {
+              data.errors.push(error);
+            } else if (data.errors.length > 0) {
+              data.errors.shift();
+              data.errors.push(error);
+            }
           }
         } else {
           // Case where mseq stepped larger than 1. Check if dseq incremented properly
@@ -375,7 +402,12 @@ export class HLSMonitor {
                 data.variants[bw].discontinuitySequence
               }. Got: ${variant.get("discontinuitySequence")}`;
               console.error(`[${baseUrl}]${error}`);
-              data.errors.push(error);
+              if (data.errors.length < ERROR_LIMIT) {
+                data.errors.push(error);
+              } else if (data.errors.length > 0) {
+                data.errors.shift();
+                data.errors.push(error);
+              }
             }
           }
         }
@@ -402,7 +434,12 @@ export class HLSMonitor {
       if (interval > this.staleLimit) {
         error = `[${new Date().toISOString()}] Stale manifest! Expected: ${this.staleLimit}ms. Got: ${interval}ms`;
         console.error(`[${baseUrl}]${error}`);
-        data.errors.push(error);
+        if (data.errors.length < ERROR_LIMIT) {
+          data.errors.push(error);
+        } else if (data.errors.length > 0) {
+          data.errors.shift();
+          data.errors.push(error);
+        }
       }
       let currErrors = this.streamData.get(baseUrl).errors;
       currErrors.concat(data.errors);
