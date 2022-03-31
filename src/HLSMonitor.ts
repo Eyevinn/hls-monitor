@@ -391,12 +391,12 @@ export class HLSMonitor {
             const dseqDiff = variant.get("discontinuitySequence") - data.variants[bw].discontinuitySequence;
             let foundDiscCount: number = discontinuityOnTopItem ? -1 : 0;
             // dseq step should match amount of disc-tags found in prev mseq playlist
-            for (let i = 0; i < mseqDiff + 1; i++) {
-              if (i < data.variants[bw].prevM3U.items.PlaylistItem.length) {
-                let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
-                if (segHasDisc) {
-                  foundDiscCount++;
-                }
+            const playlistSize = data.variants[bw].prevM3U.items.PlaylistItem.length;
+            const end = mseqDiff + 1 <= playlistSize ? mseqDiff + 1 : playlistSize;
+            for (let i = 0; i < end; i++) {
+              let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
+              if (segHasDisc) {
+                foundDiscCount++;
               }
             }
             if (dseqDiff !== foundDiscCount) {
