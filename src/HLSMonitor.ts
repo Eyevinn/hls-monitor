@@ -9,7 +9,7 @@ export enum State {
   INACTIVE = "inactive",
 }
 
-const ERROR_LIMIT = 10 || process.env.ERROR_LIMIT;
+const ERROR_LIMIT = parseInt(process.env.ERROR_LIMIT) || 10;
 
 type SegmentURI = string;
 
@@ -392,9 +392,11 @@ export class HLSMonitor {
             let foundDiscCount: number = discontinuityOnTopItem ? -1 : 0;
             // dseq step should match amount of disc-tags found in prev mseq playlist
             for (let i = 0; i < mseqDiff + 1; i++) {
-              let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
-              if (segHasDisc) {
-                foundDiscCount++;
+              if (i < data.variants[bw].prevM3U.items.PlaylistItem.length) {
+                let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
+                if (segHasDisc) {
+                  foundDiscCount++;
+                }
               }
             }
             if (dseqDiff !== foundDiscCount) {
