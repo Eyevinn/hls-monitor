@@ -233,10 +233,28 @@ describe("HLSMonitor,", () => {
       expect(MonitoredErrors).toEqual([]);
     });
 
-    
-    it("should return error if: next mseq does not increment discontinuity-sequence correctly, early increment (tag under top) 3rd case", async () => {
+    it("should not return error if: next mseq does not increment discontinuity-sequence correctly, early increment (tag under top) 3rd case", async () => {
       // Arrange
       mockHLSMediaM3u8Sequence = mockHLSMediaM3u8Sequences[9];
+      const STALE_LIMIT = 8000;
+      const STREAMS = [mockLiveUri];
+      const hls_monitor = new HLSMonitor(STREAMS, STALE_LIMIT);
+      // Act
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
+      await hls_monitor.incrementMonitor(STREAMS);
+      mockMseq++;
+      await hls_monitor.stop();
+      const MonitoredErrors = await hls_monitor.getErrors();
+      // Assert
+      expect(MonitoredErrors).toEqual([]);
+    });
+
+    it("should not return error if: discontinuity-sequence has increased but the media-sequence difference is larger than the playlist size", async () => {
+      // Arrange
+      mockHLSMediaM3u8Sequence = mockHLSMediaM3u8Sequences[10];
       const STALE_LIMIT = 8000;
       const STREAMS = [mockLiveUri];
       const hls_monitor = new HLSMonitor(STREAMS, STALE_LIMIT);

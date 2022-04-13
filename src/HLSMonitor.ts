@@ -9,7 +9,7 @@ export enum State {
   INACTIVE = "inactive",
 }
 
-const ERROR_LIMIT = 10 || process.env.ERROR_LIMIT;
+const ERROR_LIMIT = parseInt(process.env.ERROR_LIMIT) || 10;
 
 type SegmentURI = string;
 
@@ -391,22 +391,27 @@ export class HLSMonitor {
             const dseqDiff = variant.get("discontinuitySequence") - data.variants[bw].discontinuitySequence;
             let foundDiscCount: number = discontinuityOnTopItem ? -1 : 0;
             // dseq step should match amount of disc-tags found in prev mseq playlist
-            for (let i = 0; i < mseqDiff + 1; i++) {
-              let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
-              if (segHasDisc) {
-                foundDiscCount++;
+            const playlistSize = data.variants[bw].prevM3U.items.PlaylistItem.length;
+            // Ignore dseq count diff when mseq diff is too large to be able to verify
+            if (mseqDiff < playlistSize) {
+              const end = mseqDiff + 1 <= playlistSize ? mseqDiff + 1 : playlistSize;
+              for (let i = 0; i < end; i++) {
+                let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
+                if (segHasDisc) {
+                  foundDiscCount++;
+                }
               }
-            }
-            if (dseqDiff !== foundDiscCount) {
-              error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
-                data.variants[bw].discontinuitySequence
-              }. Got: ${variant.get("discontinuitySequence")}`;
-              console.error(`[${baseUrl}]${error}`);
-              if (data.errors.length < ERROR_LIMIT) {
-                data.errors.push(error);
-              } else if (data.errors.length > 0) {
-                data.errors.shift();
-                data.errors.push(error);
+              if (dseqDiff !== foundDiscCount) {
+                error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
+                  data.variants[bw].discontinuitySequence
+                }. Got: ${variant.get("discontinuitySequence")}`;
+                console.error(`[${baseUrl}]${error}`);
+                if (data.errors.length < ERROR_LIMIT) {
+                  data.errors.push(error);
+                } else if (data.errors.length > 0) {
+                  data.errors.shift();
+                  data.errors.push(error);
+                }
               }
             }
           }
