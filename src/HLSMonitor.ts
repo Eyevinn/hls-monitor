@@ -392,23 +392,26 @@ export class HLSMonitor {
             let foundDiscCount: number = discontinuityOnTopItem ? -1 : 0;
             // dseq step should match amount of disc-tags found in prev mseq playlist
             const playlistSize = data.variants[bw].prevM3U.items.PlaylistItem.length;
-            const end = mseqDiff + 1 <= playlistSize ? mseqDiff + 1 : playlistSize;
-            for (let i = 0; i < end; i++) {
-              let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
-              if (segHasDisc) {
-                foundDiscCount++;
+            // Ignore dseq count diff when mseq diff is too large to be able to verify
+            if (mseqDiff < playlistSize) {
+              const end = mseqDiff + 1 <= playlistSize ? mseqDiff + 1 : playlistSize;
+              for (let i = 0; i < end; i++) {
+                let segHasDisc = data.variants[bw].prevM3U.items.PlaylistItem[i].get("discontinuity");
+                if (segHasDisc) {
+                  foundDiscCount++;
+                }
               }
-            }
-            if (dseqDiff !== foundDiscCount) {
-              error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
-                data.variants[bw].discontinuitySequence
-              }. Got: ${variant.get("discontinuitySequence")}`;
-              console.error(`[${baseUrl}]${error}`);
-              if (data.errors.length < ERROR_LIMIT) {
-                data.errors.push(error);
-              } else if (data.errors.length > 0) {
-                data.errors.shift();
-                data.errors.push(error);
+              if (dseqDiff !== foundDiscCount) {
+                error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
+                  data.variants[bw].discontinuitySequence
+                }. Got: ${variant.get("discontinuitySequence")}`;
+                console.error(`[${baseUrl}]${error}`);
+                if (data.errors.length < ERROR_LIMIT) {
+                  data.errors.push(error);
+                } else if (data.errors.length > 0) {
+                  data.errors.shift();
+                  data.errors.push(error);
+                }
               }
             }
           }
