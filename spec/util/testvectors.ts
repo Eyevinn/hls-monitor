@@ -974,6 +974,147 @@ const mockSequence10: TMockSequence = [
       live_1_4.ts`,
   },
 ];
+// A Passable Case
+const mockSequence11: TMockSequence = [
+  // level 0
+  {
+    0: `#EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:10
+      #EXT-X-MEDIA-SEQUENCE:19
+      #EXT-X-DISCONTINUITY-SEQUENCE:10
+      #EXTINF:10.000,
+      vod_0_0.ts
+      #EXTINF:10.000,
+      vod_0_1.ts
+      #EXT-X-DISCONTINUITY
+      #EXTINF:10.000,
+      slate_0_0.ts
+      #EXT-X-DISCONTINUITY
+      #EXTINF:10.000,
+      nextvod_0_0.ts
+      #EXT-X-DISCONTINUITY
+      #EXT-X-CUE-OUT:DURATION=136
+      #EXTINF:10.000,
+      live_0_0.ts`,
+    1: `#EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:10
+      #EXT-X-MEDIA-SEQUENCE:20
+      #EXT-X-DISCONTINUITY-SEQUENCE:10
+      #EXTINF:10.000,
+      vod_0_1.ts
+      #EXT-X-DISCONTINUITY
+      #EXTINF:10.000,
+      slate_0_0.ts
+      #EXT-X-DISCONTINUITY
+      #EXTINF:10.000,
+      nextvod_0_0.ts
+      #EXT-X-DISCONTINUITY
+      #EXT-X-CUE-OUT:DURATION=136
+      #EXTINF:10.000,
+      live_0_0.ts
+      #EXTINF:10.000,
+      live_0_1.ts`,
+    2: `#EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:10
+      #EXT-X-MEDIA-SEQUENCE:123
+      #EXT-X-DISCONTINUITY-SEQUENCE:12
+      #EXT-X-DISCONTINUITY
+      #EXT-X-CUE-OUT:DURATION=136
+      #EXTINF:10.000,
+      live_0_0.ts
+      #EXTINF:10.000,
+      live_0_1.ts
+      #EXTINF:10.000,
+      live_0_2.ts
+      #EXTINF:10.000,
+      live_0_3.ts`,
+    3: `#EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:10
+      #EXT-X-MEDIA-SEQUENCE:124
+      #EXT-X-DISCONTINUITY-SEQUENCE:13
+      #EXTINF:10.000,
+      live_0_1.ts
+      #EXTINF:10.000,
+      live_0_2.ts
+      #EXTINF:10.000,
+      live_0_3.ts
+      #EXTINF:10.000,
+      live_0_4.ts`,
+  },
+  // level 1
+  {
+    0: `#EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:10
+      #EXT-X-MEDIA-SEQUENCE:19
+      #EXT-X-DISCONTINUITY-SEQUENCE:10
+      #EXTINF:10.000,
+      vod_1_0.ts
+      #EXTINF:10.000,
+      vod_1_1.ts
+      #EXT-X-DISCONTINUITY
+      #EXTINF:10.000,
+      slate_1_0.ts
+      #EXT-X-DISCONTINUITY
+      #EXTINF:10.000,
+      nextvod_1_0.ts
+      #EXT-X-DISCONTINUITY
+      #EXT-X-CUE-OUT:DURATION=136
+      #EXTINF:10.000,
+      live_1_0.ts`,
+    1: `#EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:10
+      #EXT-X-MEDIA-SEQUENCE:20
+      #EXT-X-DISCONTINUITY-SEQUENCE:10
+      #EXTINF:10.000,
+      vod_1_1.ts
+      #EXT-X-DISCONTINUITY
+      #EXTINF:10.000,
+      slate_1_0.ts
+      #EXT-X-DISCONTINUITY
+      #EXTINF:10.000,
+      nextvod_1_0.ts
+      #EXT-X-DISCONTINUITY
+      #EXT-X-CUE-OUT:DURATION=136
+      #EXTINF:10.000,
+      live_1_0.ts
+      #EXTINF:10.000,
+      live_1_1.ts`,
+    2: `#EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:10
+      #EXT-X-MEDIA-SEQUENCE:123
+      #EXT-X-DISCONTINUITY-SEQUENCE:12
+      #EXT-X-DISCONTINUITY
+      #EXT-X-CUE-OUT:DURATION=136
+      #EXTINF:10.000,
+      live_1_0.ts
+      #EXTINF:10.000,
+      live_1_1.ts
+      #EXTINF:10.000,
+      live_1_2.ts
+      #EXTINF:10.000,
+      live_1_3.ts`,
+    3: `#EXTM3U
+      #EXT-X-VERSION:3
+      #EXT-X-TARGETDURATION:10
+      #EXT-X-MEDIA-SEQUENCE:124
+      #EXT-X-DISCONTINUITY-SEQUENCE:13
+      #EXTINF:10.000,
+      live_1_1.ts
+      #EXTINF:10.000,
+      live_1_2.ts
+      #EXTINF:10.000,
+      live_1_3.ts
+      #EXTINF:10.000,
+      live_1_4.ts`,
+  },
+];
 
 // A Passable Case
 const mockSequence11: TMockSequence = [
