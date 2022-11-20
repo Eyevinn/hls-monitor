@@ -72,12 +72,7 @@ export class HLSMonitor {
     } else {
       this.staleLimit = parseInt(process.env.HLS_MONITOR_INTERVAL || "6000");
     }
-    console.log(`Stale-limit: ${this.staleLimit}`);
-    this.updateInterval = staleLimit / 2;
-  }
-
-  attachMonitorId(id: string) {
-    this.id = id;
+    this.updateInterval = this.staleLimit / 2;
   }
 
   /**
@@ -114,8 +109,12 @@ export class HLSMonitor {
     }
   }
 
-  getId(): string {
+  get monitorId(): string {
     return this.id;
+  }
+
+  getUpdateInterval(): number {
+    return this.updateInterval;
   }
 
   async getErrors(): Promise<Object[]> {

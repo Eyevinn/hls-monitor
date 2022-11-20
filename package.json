@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc --project ./",
+    "start": "node example.js",
     "postversion": "git push && git push --tags",
     "test": "ts-node node_modules/jasmine/bin/jasmine"
   },

@@ -1,15 +1,16 @@
-# hls-monitor
+# HLS Monitor
 
-Service to monitor one or more hls streams for manifest errors and inconsistencies.
-Possible inconsistencies and errors are:
-  - Media sequence counter issues. 
-  - Discontinuity sequence counter issues. 
-  - Detect stale manifests. The default is at least 6000ms but can be configured via the env `HLS_MONITOR_INTERVAL` or set when creating a new HLSMonitor. 
-  - Playlist is updating correctly. 
+Service to monitor one or more HLS-streams for manifest errors and inconsistencies.
+These are:
+
+- Media sequence counter issues.
+- Discontinuity sequence counter issues.
+- Detect stale manifests. The default is at least 6000ms but can be configured via the env `HLS_MONITOR_INTERVAL` or set when creating a new HLSMonitor.
+- Playlist is updating correctly.
 
 ## Setup
 
-To initialize a new `HLSMonitorService` do: 
+To initialize a new `HLSMonitorService` do:
 
 ```typescript
 import { HLSMonitorService } from "@eyevinn/hls-monitor";
@@ -19,10 +20,11 @@ const hlsMonitorService = new HLSMonitorService();
 // register the routes 
 hlsMonitorService.listen(3000);
 ```
+
 The monitor service is now up and running and available on port `3000`.
 A basic Swagger doc can be accessed via `hls-monitor-endpoint/docs`
 
-Start monitoring a new stream by doing a `POST` to `hls-monitor-endpoint/monitor` with the following payload: 
+Start monitoring a new stream by doing a `POST` to `hls-monitor-endpoint/monitor` with the following payload:
 
 ```json
 {
@@ -30,7 +32,7 @@ Start monitoring a new stream by doing a `POST` to `hls-monitor-endpoint/monitor
 }
 ```
 
-It's also possible to set the interval (in milliseconds) for when a manifest should be considered as stale, this is done via: 
+It's also possible to set the interval (in milliseconds) for when a manifest should be considered as stale, this is done via:
 
 ```json
 {
@@ -39,9 +41,9 @@ It's also possible to set the interval (in milliseconds) for when a manifest sho
 }
 ```
 
-To get the latest error for a specific monitor do a `GET` to `hls-monitor-endpoint/monitor/:monitorId/status`. 
+To get the latest error for a specific monitor do a `GET` to `hls-monitor-endpoint/monitor/:monitorId/status`.
 
-To remove a specific stream from a monitor do a `DELETE` to 
+To remove a specific stream from a monitor do a `DELETE` to
 `hls-monitor-endpoint/monitor/:monitorId` with the following payload:
 
 ```json
@@ -50,32 +52,21 @@ To remove a specific stream from a monitor do a `DELETE` to
 }
 ```
 
-To remove a monitor with all streams linked to it from monitoring do a `DELETE` to 
-`hls-monitor-endpoint/monitor` with the following payload
+Available endpoints are:
 
-Available endpoints are: 
-
-`POST` /monitor
-
-`GET` /monitor
-
-`DELETE`/monitor
-
-`DELETE` /monitor/:monitorId
-
-`GET` /monitor/:monitorId/status
-
-`DELETE` /monitor/:monitorId/status
-
-`GET` /monitor/:monitorId/streams
-
-`PUT`/monitor/:monitorId/streams
-
-`GET` /healthcheck
-
-`POST` /monitor/:monitorId/start
-
-`POST` /monitor/:monitorId/stop
+| Endpoint                         | Method   | Description                                                 |
+| -------------------------------- | -------- | ----------------------------------------------------------- |
+| `/`                              | `GET`    | Heartbeat endpoint of service                               |
+| `/monitor`                       | `POST`   | Start monitoring a new stream                               |
+| `/monitor`                       | `GET`    | List all monitors                                           |
+| `/monitor`                       | `DELETE` | Delete all monitored streams                                |
+| `/monitor/:monitorId`            | `DELETE` | Delete a specific stream                                    |
+| `/monitor/:monitorId/start`      | `POST`   | Start a specific monitor                                    |
+| `/monitor/:monitorId/stop`       | `POST`   | Stop a specific monitor                                     |
+| `/monitor/:monitorId/status`     | `GET`    | Get the current status of a stream                          |
+| `/monitor/:monitorId/status`     | `GET`    | Delete the cached status of a stream                        |
+| `/monitor/:monitorId/streams`    | `GET`    | Returns a list of all streams that are currently monitored  |
+| `/monitor/:monitorId/streams`    | `PUT`    | Add a stream to the list of streams that will be monitored  |
 
 The `HLSMonitorService` can also be controlled through code:
 
@@ -94,11 +85,11 @@ const errors = hlsMonitorService.monitor.getErrors();
 console.log(errors);
 ```
 
-# [Contributing](CONTRIBUTING.md)
+## [Contributing](CONTRIBUTING.md)
 
 In addition to contributing code, you can help to triage issues. This can include reproducing bug reports, or asking for vital information such as version numbers or reproduction instructions.
 
-# License (MIT)
+## License (MIT)
 
 Copyright 2022 Eyevinn Technology
 
@@ -108,7 +99,7 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# Support
+## Support
 
 Join our [community on Slack](http://slack.streamingtech.se) where you can post any questions regarding any of our open source projects. Eyevinn's consulting business can also offer you:
 
@@ -118,7 +109,7 @@ Join our [community on Slack](http://slack.streamingtech.se) where you can post 
 
 Contact [sales@eyevinn.se](mailto:sales@eyevinn.se) if you are interested.
 
-# About Eyevinn Technology
+## About Eyevinn Technology
 
 Eyevinn Technology is an independent consultant firm specialized in video and streaming. Independent in a way that we are not commercially tied to any platform or technology vendor.
 
