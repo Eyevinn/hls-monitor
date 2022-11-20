@@ -10,6 +10,12 @@
     "test": "ts-node node_modules/jasmine/bin/jasmine"
   },
   "author": "Eyevinn Technology AB <work@eyevinn.se>",
+  "contributors": [
+    "Oscar Nord <oscar.nord@eyevinn.se> (Eyevinn Technology AB)",
+    "Nicholas Frederiksen <nicholas.frederiksen@eyevinn.se> (Eyevinn Technology AB)",
+    "Johan Lautakoski <johan.lautakoski@eyevinn.se> (Eyevinn Technology AB)",
+    "Jonas Birmé <jonas.birme@eyevinn.se> (Eyevinn Technology AB)"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Eyevinn/hls-monitor.git"
@@ -32,5 +38,11 @@
     "short-uuid": "^4.2.0",
     "ts-node": "^10.7.0",
     "uuid": "^8.3.2"
-  }
+  },
+  "keywords": [
+    "hls",
+    "monitor",
+    "stream",
+    "tools"
+  ]
 }

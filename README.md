@@ -68,6 +68,13 @@ Available endpoints are:
 | `/monitor/:monitorId/streams`    | `GET`    | Returns a list of all streams that are currently monitored  |
 | `/monitor/:monitorId/streams`    | `PUT`    | Add a stream to the list of streams that will be monitored  |
 
+A few environment variables can be set to configure the service:
+
+```text
+HLS_MONITOR_INTERVAL=6000 # Interval in milliseconds for when a manifest should be considered as stale
+ERROR_LIMIT=10 # number of errors to be saved in memory
+```
+
 The `HLSMonitorService` can also be controlled through code:
 
 ```typescript

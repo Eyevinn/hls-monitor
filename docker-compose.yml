@@ -1,0 +1,20 @@
+version: "3.7"
+networks:
+  hls-monitor-internal:
+    driver: bridge
+
+services:
+  hls-monitor:
+    build:
+      context: .
+    image: hls-monitor
+    container_name: hls-monitor
+    environment:
+      - ERROR_LIMIT=${ERROR_LIMIT}
+      - HLS_MONITOR_INTERVAL=${HLS_MONITOR_INTERVAL}
+    ports:
+      - 3000:3000
+    expose:
+      - 3000
+    networks:
+      - hls-monitor-internal
