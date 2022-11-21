@@ -35,6 +35,31 @@ describe("HLSMonitor,", () => {
       mockMseq = 0;
     });
 
+    it("should have an unique id and properly set stale limit and update interval", async () => {
+      const STALE_LIMIT = 8000;
+      const STREAMS = [mockLiveUri];
+      const hls_monitor_1 = new HLSMonitor(STREAMS, STALE_LIMIT);
+      const hls_monitor_2 = new HLSMonitor(STREAMS);
+      const id1 = hls_monitor_1.monitorId;
+      const id2 = hls_monitor_2.monitorId;
+      // The update interval will be set to 1/2 of the stale limit
+      const monitor_1_stale_limit = hls_monitor_1.getUpdateInterval() * 2;
+      const monitor_2_stale_limit = hls_monitor_2.getUpdateInterval() * 2;
+
+      expect(id1).toBeDefined();
+      expect(id1).not.toBeNull();
+      expect(id1).not.toBe("");
+
+      expect(id2).toBeDefined();
+      expect(id2).not.toBeNull();
+      expect(id2).not.toBe("");
+
+      expect(id1).not.toEqual(id2);
+
+      expect(monitor_1_stale_limit).toEqual(STALE_LIMIT);
+      expect(monitor_2_stale_limit).toEqual(6000); // default
+    });
+
     it("should return error if: next mseq starts on wrong segment", async () => {
       // Arrange
       mockHLSMediaM3u8Sequence = mockHLSMediaM3u8Sequences[0];
