@@ -92,7 +92,7 @@ const monitor = new HLSMonitor(streams, staleLimit);
 // Start the HLS-Monitor, it will begin polling and analyzing new manifests. 
 monitor.start();
 
-// Get latest errors
+// ... after some time, check for the latest errors
 const errors = await monitor.getErrors();
 console.log(errors);
 ```
