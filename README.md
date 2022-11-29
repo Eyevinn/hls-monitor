@@ -75,20 +75,25 @@ HLS_MONITOR_INTERVAL=6000 # Interval in milliseconds for when a manifest should 
 ERROR_LIMIT=10 # number of errors to be saved in memory
 ```
 
-The `HLSMonitorService` can also be controlled through code:
+The `HLSMonitorService` can also be controlled through code by using the core `HLSMonitor` directly:
 
 ```typescript
-import { HLSMonitorService } from "@eyevinn/hls-monitor";
+import { HLSMonitor } from "@eyevinn/hls-monitor";
 
-// initialize a new instance of HLSMonitorService
-const hlsMonitorService = new HLSMonitorService();
+// Define a list of streams
+const streams = ["stream-to-monitor-01/manifest.m3u8", "stream-to-monitor-02/manifest.m3u8"];
 
-// create a new hls-monitor
-const streams = ["streams-to-monitor/manifest.m3u8"];
-hlsMonitorService.monitor.create(streams);
+// Define stale limit in miliseconds (Defaults at 6000)
+const staleLimit = 10000;
+
+// initialize a new instance of HLSMonitor
+const monitor = new HLSMonitor(streams, staleLimit);
+
+// Start the HLS-Monitor, it will begin polling and analyzing new manifests. 
+monitor.start();
 
 // Get latest errors
-const errors = hlsMonitorService.monitor.getErrors();
+const errors = monitor.getErrors();
 console.log(errors);
 ```
 
