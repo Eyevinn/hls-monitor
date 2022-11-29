@@ -93,7 +93,7 @@ const monitor = new HLSMonitor(streams, staleLimit);
 monitor.start();
 
 // Get latest errors
-const errors = monitor.getErrors();
+const errors = await monitor.getErrors();
 console.log(errors);
 ```
 
