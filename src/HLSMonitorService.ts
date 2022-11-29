@@ -119,7 +119,7 @@ export class HLSMonitorService {
           message: "monitor not initialized",
         });
       }
-      reply.send({ streams: this.hlsMonitors.get(request.parms.monitorId).getStreamUrls() });
+      reply.send({ streams: this.hlsMonitors.get(request.params.monitorId).getStreamUrls() });
     });
 
     this.fastify.put("/monitor/:monitorId/streams", async (request, reply) => {
