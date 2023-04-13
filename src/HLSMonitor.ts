@@ -42,6 +42,9 @@ type VariantData = {
   newDiscontinuitySequence?: number;
   nextIsDiscontinuity?: boolean;
   prevM3U?: M3U;
+  duration?: number;
+  cueOut?: number;
+  cueIn?: number;
 };
 type StreamData = {
   variants?: { [bandwidth: number]: VariantData };
@@ -58,12 +61,13 @@ export class HLSMonitor {
   private updateInterval: number;
   private lock = new Mutex();
   private id: string;
+  private logConsole: boolean;
 
   /**
    * @param hlsStreams The streams to monitor.
    * @param [staleLimit] The monitor interval for streams overrides the default (6000ms) monitor interval and the HLS_MONITOR_INTERVAL environment variable.
    */
-  constructor(hlsStreams: string[], staleLimit?: number) {
+  constructor(hlsStreams: string[], staleLimit?: number, logConsole?: boolean) {
     this.id = uuidv4();
     this.streams = hlsStreams;
     this.state = State.IDLE;
@@ -73,6 +77,7 @@ export class HLSMonitor {
       this.staleLimit = parseInt(process.env.HLS_MONITOR_INTERVAL || "6000");
     }
     this.updateInterval = this.staleLimit / 2;
+    this.logConsole = logConsole;
   }
 
   /**
@@ -163,6 +168,34 @@ export class HLSMonitor {
     console.log(`HLSMonitor stopped: ${this.id}`);
   }
 
+  private log(str: string) {
+    if (this.logConsole) {
+      console.log(str);
+    }
+  }
+  
+  private printSummary(data) {
+    if (this.logConsole) {
+      //console.log(data);
+      const d = new Date(data.lastFetch);
+      const timeUpdate = d.toLocaleTimeString();
+      const variantList = Object.keys(data.variants);
+      console.log(`${timeUpdate}\t` + variantList.join('\t'));
+      console.log('--------------------------------------------------------------------------');
+      const duration = 'DUR(s):\t\t' + variantList.map((v) => data.variants[v].duration.toFixed(2)).join('\t');
+      console.log(duration);
+      const mediaSeq = 'MSEQ:\t\t' + variantList.map((v) => data.variants[v].mediaSequence).join('\t');
+      console.log(mediaSeq);
+      const discSeq = 'DSEQ:\t\t' + variantList.map((v) => data.variants[v].discontinuitySequence).join('\t');
+      console.log(discSeq);
+      const cueOut = 'CUEOUT:\t\t' + variantList.map((v) => data.variants[v].cueOut).join('\t');
+      console.log(cueOut);
+
+
+      console.log('==========================================================================');
+    }
+  }
+
   /**
    * Update the list of streams to monitor
    * @param streams The list of streams that should be added
@@ -237,7 +270,7 @@ export class HLSMonitor {
         };
       }
       let error: string;
-      for (const mediaM3U8 of masterM3U8.items.StreamItem) {
+      for (const mediaM3U8 of masterM3U8.items.StreamItem.concat(masterM3U8.items.MediaItem)) {
         let variant: M3U;
         try {
           variant = await manifestLoader.load(`${baseUrl}${mediaM3U8.get("uri")}`);
@@ -246,7 +279,10 @@ export class HLSMonitor {
           return error;
         }
         let equalMseq = false;
-        const bw: number = mediaM3U8.get("bandwidth");
+        let bw = mediaM3U8.get("bandwidth");
+        if (mediaM3U8.get("type") === 'AUDIO') {
+          bw = mediaM3U8.get("language");
+        }
         const currTime = new Date().toISOString();
         if (!data.variants[bw]) {
           data.variants[bw] = {
@@ -258,7 +294,11 @@ export class HLSMonitor {
             newDiscontinuitySequence: null,
             nextIsDiscontinuity: null,
             prevM3U: null,
+            duration: null,
+            cueOut: null,
+            cueIn: null
           };
+          //console.log(variant.items.PlaylistItem);
           data.variants[bw].mediaSequence = variant.get("mediaSequence");
           data.variants[bw].newMediaSequence = 0;
           data.variants[bw].fileSequences = variant.items.PlaylistItem.map((segItem) => segItem.get("uri"));
@@ -267,12 +307,41 @@ export class HLSMonitor {
           data.variants[bw].newDiscontinuitySequence = variant.get("discontinuitySequence");
           data.variants[bw].nextIsDiscontinuity = false;
           data.variants[bw].prevM3U = variant;
+          data.variants[bw].duration = 
+            variant.items.PlaylistItem
+              .map((segItem) => segItem.get("duration")).reduce((acc, cur) => acc + cur);
+          data.variants[bw].cueOut =
+            variant.items.PlaylistItem
+              .map((segItem) => segItem.get("cueout") !== undefined)
+              .filter(Boolean).length;
+          data.variants[bw].cueIn =
+            variant.items.PlaylistItem
+              .map((segItem) => segItem.get("cuein") !== undefined)
+              .filter(Boolean).length;
+  
           data.lastFetch = Date.now();
           data.newTime = Date.now();
           data.errors = [];
           this.streamData.set(baseUrl, data);
           continue;
         }
+        // Update sequence duration
+        data.variants[bw].duration = 
+          variant.items.PlaylistItem
+            .map((segItem) => segItem.get("duration")).reduce((acc, cur) => acc + cur);
+
+        // Update cueout count   
+        data.variants[bw].cueOut =
+          variant.items.PlaylistItem
+            .map((segItem) => segItem.get("cueout") !== undefined)
+            .filter(Boolean).length;
+
+        // Update cuein count
+        data.variants[bw].cueIn =
+          variant.items.PlaylistItem
+            .map((segItem) => segItem.get("cuein") !== undefined)
+            .filter(Boolean).length;
+
         // Validate mediaSequence
         if (data.variants[bw].mediaSequence > variant.get("mediaSequence")) {
           error = `[${currTime}] Error in mediaSequence! (BW:${bw}) Expected mediaSequence >= ${data.variants[bw].mediaSequence}. Got: ${variant.get("mediaSequence")}`;
@@ -452,6 +521,9 @@ export class HLSMonitor {
         lastFetch: data.newTime ? data.newTime : data.lastFetch,
         errors: currErrors,
       });
+
+      this.printSummary(data);
+
       if (error) {
         console.log(`[${new Date().toISOString()}] Master manifest loaded with error: ${this.getBaseUrl(streamUrl)}`);
       } else {
