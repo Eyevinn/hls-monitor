@@ -8,6 +8,20 @@ These are:
 - Detect stale manifests. The default is at least 6000ms but can be configured via the env `HLS_MONITOR_INTERVAL` or set when creating a new HLSMonitor.
 - Playlist is updating correctly.
 
+## Command Line Executable
+
+To run HLS monitor first install the executable:
+
+```
+npm install -g @eyevinn/hls-monitor
+```
+
+Then run:
+
+```
+hls-monitor URL-TO-MONITOR
+```
+
 ## Setup
 
 To initialize a new `HLSMonitorService` do:
