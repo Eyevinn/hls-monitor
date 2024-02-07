@@ -25,7 +25,6 @@ export class HLSMonitorService {
           description: "HLSMonitor API",
           version: "0.0.1",
         },
-        host: "localhost",
         schemes: ["http"],
         consumes: ["application/json"],
         produces: ["application/json"],
