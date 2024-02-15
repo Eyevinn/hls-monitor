@@ -25,7 +25,6 @@ export class HLSMonitorService {
           description: "HLSMonitor API",
           version: "0.0.1",
         },
-        schemes: ["http"],
         consumes: ["application/json"],
         produces: ["application/json"],
       },
@@ -46,7 +45,15 @@ export class HLSMonitorService {
       exposeRoute: true,
     });
 
-    this.fastify.get("/monitor/:monitorId/status", async (request, reply) => {
+    this.fastify.get("/monitor/:monitorId/status",
+    {
+      schema: {
+        params: { 
+          monitorId: { type: 'string' }
+        }
+      }
+    }, 
+    async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
@@ -58,7 +65,15 @@ export class HLSMonitorService {
       reply.code(200).header("Content-Type", "application/json; charset=utf-8").send({ logs: logs });
     });
 
-    this.fastify.delete("/monitor/:monitorId/status", async (request, reply) => {
+    this.fastify.delete("/monitor/:monitorId/status",
+    {
+      schema: {
+        params: { 
+          monitorId: { type: 'string' }
+        }
+      }
+    }, 
+    async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
@@ -69,7 +84,42 @@ export class HLSMonitorService {
       reply.code(200).header("Content-Type", "application/json; charset=utf-8").send({ message: "Cleared errors" });
     });
 
-    this.fastify.post("/monitor", async (request, reply) => {
+    const MonitorBody = {
+      type: 'object',
+      properties: {
+        streams: {
+          type: 'array',
+          items: { type: 'string' }
+        },
+        stale_limit: {
+          type: 'number',
+          default: '3000'
+        }
+      }
+    };
+
+    const MonitorResponse = {
+      type: 'object',
+      properties: {
+        monitorId: { type: 'string' },
+        status: { type: 'string' },
+        streams: {
+          type: 'array',
+          itmes: { type: 'string' }
+        }
+      }
+    }
+
+    this.fastify.post("/monitor", 
+    { 
+      schema: { 
+        body: MonitorBody,
+        response: {
+          '200': MonitorResponse
+        }
+      } 
+    }, 
+    async (request, reply) => {
       const body = request.body;
       let monitor;
       if (body["stale_limit"]) {
@@ -111,7 +161,15 @@ export class HLSMonitorService {
         .send(JSON.stringify(monitorInfo));
     });
 
-    this.fastify.get("/monitor/:monitorId/streams", async (request, reply) => {
+    this.fastify.get("/monitor/:monitorId/streams", 
+    {
+      schema: {
+        params: { 
+          monitorId: { type: 'string' }
+        }
+      }
+    }, 
+    async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
@@ -121,7 +179,15 @@ export class HLSMonitorService {
       reply.send({ streams: this.hlsMonitors.get(request.params.monitorId).getStreamUrls() });
     });
 
-    this.fastify.put("/monitor/:monitorId/streams", async (request, reply) => {
+    this.fastify.put("/monitor/:monitorId/streams",
+    {
+      schema: {
+        params: { 
+          monitorId: { type: 'string' }
+        }
+      }
+    },
+    async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
@@ -135,7 +201,18 @@ export class HLSMonitorService {
       });
     });
 
-    this.fastify.delete("/monitor", async (request, reply) => {
+    this.fastify.delete("/monitor",
+    {
+      schema: {
+        body: {
+          type: 'object',
+          properties: {
+            monitorId: { type: 'string' }
+          }
+        }
+      }
+    },
+    async (request, reply) => {
       const body = request.body;
       if (!this.hlsMonitors.has(body["monitorId"])) {
         reply.code(500).send({
@@ -154,7 +231,15 @@ export class HLSMonitorService {
       reply.code(200).header("Content-Type", "application/json; charset=utf-8").send({ status: "Healthy 💖" });
     });
 
-    this.fastify.post("/monitor/:monitorId/stop", async (request, reply) => {
+    this.fastify.post("/monitor/:monitorId/stop",
+    {
+      schema: {
+        params: { 
+          monitorId: { type: 'string' }
+        }
+      }
+    },    
+    async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
@@ -165,7 +250,15 @@ export class HLSMonitorService {
       reply.code(200).header("Content-Type", "application/json; charset=utf-8").send({ status: "Stopped monitoring" });
     });
 
-    this.fastify.post("/monitor/:monitorId/start", async (request, reply) => {
+    this.fastify.post("/monitor/:monitorId/start", 
+    {
+      schema: {
+        params: { 
+          monitorId: { type: 'string' }
+        }
+      }
+    },    
+    async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
@@ -176,7 +269,15 @@ export class HLSMonitorService {
       reply.code(200).header("Content-Type", "application/json; charset=utf-8").send({ status: "Started monitoring" });
     });
 
-    this.fastify.delete("/monitor/:monitorId", async (request, reply) => {
+    this.fastify.delete("/monitor/:monitorId",
+    {
+      schema: {
+        params: { 
+          monitorId: { type: 'string' }
+        }
+      }
+    }, 
+    async (request, reply) => {
       if (!this.hlsMonitors.has(request.params.monitorId)) {
         reply.code(500).send({
           status: "error",
