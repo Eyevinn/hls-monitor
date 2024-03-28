@@ -1,12 +1,12 @@
 # HLS Monitor
 
-Service to monitor one or more HLS-streams for manifest errors and inconsistencies.
+Service to monitor one or more HLS streams for manifest errors and inconsistencies.
 These are:
 
 - Media sequence counter issues.
 - Discontinuity sequence counter issues.
 - Detect stale manifests. The default is at least 6000ms but can be configured via the env `HLS_MONITOR_INTERVAL` or set when creating a new HLSMonitor.
-- Playlist is updating correctly.
+The playlist is updating correctly.
 
 <div align="center">
 <br />
@@ -31,7 +31,7 @@ hls-monitor URL-TO-MONITOR
 
 ## Setup
 
-To initialize a new `HLSMonitorService` do:
+To initialize a new `HLSMonitorService` do the following:
 
 ```typescript
 import { HLSMonitorService } from "@eyevinn/hls-monitor";
@@ -85,14 +85,14 @@ Available endpoints are:
 | `/monitor/:monitorId/start`      | `POST`   | Start a specific monitor                                    |
 | `/monitor/:monitorId/stop`       | `POST`   | Stop a specific monitor                                     |
 | `/monitor/:monitorId/status`     | `GET`    | Get the current status of a stream                          |
-| `/monitor/:monitorId/status`     | `GET`    | Delete the cached status of a stream                        |
+| `/monitor/:monitorId/status`     | `DELETE` | Delete the cached status of a stream                        |
 | `/monitor/:monitorId/streams`    | `GET`    | Returns a list of all streams that are currently monitored  |
 | `/monitor/:monitorId/streams`    | `PUT`    | Add a stream to the list of streams that will be monitored  |
 
 A few environment variables can be set to configure the service:
 
 ```text
-HLS_MONITOR_INTERVAL=6000 # Interval in milliseconds for when a manifest should be considered as stale
+HLS_MONITOR_INTERVAL=6000 # Interval in milliseconds for when a manifest should be considered stale
 ERROR_LIMIT=10 # number of errors to be saved in memory
 ```
 
@@ -104,7 +104,7 @@ import { HLSMonitor } from "@eyevinn/hls-monitor";
 // Define a list of streams
 const streams = ["stream-to-monitor-01/manifest.m3u8", "stream-to-monitor-02/manifest.m3u8"];
 
-// Define stale limit in miliseconds (Defaults at 6000)
+// Define stale limit in milliseconds (Defaults at 6000)
 const staleLimit = 10000;
 
 // initialize a new instance of HLSMonitor
@@ -120,7 +120,7 @@ console.log(errors);
 
 ## [Contributing](CONTRIBUTING.md)
 
-In addition to contributing code, you can help to triage issues. This can include reproducing bug reports, or asking for vital information such as version numbers or reproduction instructions.
+In addition to contributing code, you can help to triage issues. This can include reproducing bug reports or asking for vital information such as version numbers or reproduction instructions.
 
 ## License (MIT)
 
@@ -134,7 +134,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 ## Support
 
-Join our [community on Slack](http://slack.streamingtech.se) where you can post any questions regarding any of our open source projects. Eyevinn's consulting business can also offer you:
+Join our [community on Slack](http://slack.streamingtech.se) where you can post any questions regarding any of our open-source projects. Eyevinn's consulting business can also offer you:
 
 - Further development of this component
 - Customization and integration of this component into your platform
@@ -144,8 +144,8 @@ Contact [sales@eyevinn.se](mailto:sales@eyevinn.se) if you are interested.
 
 ## About Eyevinn Technology
 
-Eyevinn Technology is an independent consultant firm specialized in video and streaming. Independent in a way that we are not commercially tied to any platform or technology vendor.
+Eyevinn Technology is an independent consultant firm specializing in video and streaming. Independent in a way that we are not commercially tied to any platform or technology vendor.
 
-At Eyevinn, every software developer consultant has a dedicated budget reserved for open source development and contribution to the open source community. This give us room for innovation, team building and personal competence development. And also gives us as a company a way to contribute back to the open source community.
+At Eyevinn, every software developer consultant has a dedicated budget reserved for open source development and contribution to the open source community. This gives us room for innovation, team building, and personal competence development. And also gives us as a company a way to contribute back to the open source community.
 
 Want to know more about Eyevinn and how it is to work here. Contact us at work@eyevinn.se!
