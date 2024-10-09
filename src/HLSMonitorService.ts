@@ -48,6 +48,7 @@ export class HLSMonitorService {
     this.fastify.get("/monitor/:monitorId/status",
     {
       schema: {
+        description: "Get the current status of a stream",
         params: { 
           monitorId: { type: 'string' }
         }
@@ -68,6 +69,7 @@ export class HLSMonitorService {
     this.fastify.delete("/monitor/:monitorId/status",
     {
       schema: {
+        description: "Delete the cached status of a stream",
         params: { 
           monitorId: { type: 'string' }
         }
@@ -111,8 +113,9 @@ export class HLSMonitorService {
     }
 
     this.fastify.post("/monitor", 
-    { 
+    {
       schema: { 
+        description: "Start monitoring a new stream", 
         body: MonitorBody,
         response: {
           '200': MonitorResponse
@@ -164,6 +167,7 @@ export class HLSMonitorService {
     this.fastify.get("/monitor/:monitorId/streams", 
     {
       schema: {
+        description: "Returns a list of all streams that are currently monitored",
         params: { 
           monitorId: { type: 'string' }
         }
@@ -182,6 +186,7 @@ export class HLSMonitorService {
     this.fastify.put("/monitor/:monitorId/streams",
     {
       schema: {
+        description: "Add a stream to the list of streams that will be monitored",
         params: { 
           monitorId: { type: 'string' }
         }
@@ -204,6 +209,7 @@ export class HLSMonitorService {
     this.fastify.delete("/monitor",
     {
       schema: {
+        description: "Delete all monitored streams",
         body: {
           type: 'object',
           properties: {
@@ -227,13 +233,14 @@ export class HLSMonitorService {
       }
     });
 
-    this.fastify.get("/", async (request, reply) => {
+    this.fastify.get("/", { schema: { description: "Health check" } }, async (request, reply) => {
       reply.code(200).header("Content-Type", "application/json; charset=utf-8").send({ status: "Healthy 💖" });
     });
 
     this.fastify.post("/monitor/:monitorId/stop",
     {
       schema: {
+        description: "Stop a specific monitor",
         params: { 
           monitorId: { type: 'string' }
         }
@@ -253,6 +260,7 @@ export class HLSMonitorService {
     this.fastify.post("/monitor/:monitorId/start", 
     {
       schema: {
+        description: "Start a specific monitor",
         params: { 
           monitorId: { type: 'string' }
         }
@@ -272,8 +280,12 @@ export class HLSMonitorService {
     this.fastify.delete("/monitor/:monitorId",
     {
       schema: {
+        description: "Delete a specific stream",
         params: { 
           monitorId: { type: 'string' }
+        },
+        body: {
+          streams: { type: 'array', items: { type: 'string' } }
         }
       }
     }, 
@@ -285,6 +297,12 @@ export class HLSMonitorService {
         });
       }
       const streams = request.body["streams"];
+      if (!streams) {
+        reply.code(400).send({
+          status: "error",
+          message: "an array of streams to delete is required",
+        });
+      }
       const resp = await this.hlsMonitors.get(request.params.monitorId).remove(streams);
       reply.code(201).header("Content-Type", "application/json; charset=utf-8").send({
         message: "Deleted stream. Remaining streams:",
