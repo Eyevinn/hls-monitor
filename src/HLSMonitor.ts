@@ -780,9 +780,6 @@ export class HLSMonitor {
 
       this.printSummary(data);
 
-      if (data.errors.size() > 0) {
-        console.log(`[${new Date().toISOString()}] Master manifest loaded with error: ${this.getBaseUrl(stream.url)}`);
-      }
       release();
     }
   }

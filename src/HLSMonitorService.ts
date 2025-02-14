@@ -401,7 +401,7 @@ export class HLSMonitorService {
           type: 'object',
           required: ['streamId'],
           properties: {
-            streamId: { type: 'number' }
+            streamId: { type: 'string' }
           }
         },
         response: {
@@ -494,6 +494,47 @@ export class HLSMonitorService {
       await this.hlsMonitors.get(request.params.monitorId).clearErrors();
       reply.code(200).header("Content-Type", "application/json; charset=utf-8").send({ message: "Cleared errors" });
     });
+
+    this.fastify.post("/monitor/:monitorId/stop",
+      {
+        schema: {
+          description: "Stop a specific monitor",
+          params: { 
+            monitorId: { type: 'string' }
+          }
+        }
+      },    
+      async (request, reply) => {
+        if (!this.hlsMonitors.has(request.params.monitorId)) {
+          reply.code(500).send({
+            status: "error",
+            message: "monitor not initialized",
+          });
+        }
+        await this.hlsMonitors.get(request.params.monitorId).stop();
+        reply.code(200).header("Content-Type", "application/json; charset=utf-8").send({ status: "Stopped monitoring" });
+      });
+  
+      this.fastify.post("/monitor/:monitorId/start", 
+      {
+        schema: {
+          description: "Start a specific monitor",
+          params: { 
+            monitorId: { type: 'string' }
+          }
+        }
+      },    
+      async (request, reply) => {
+        if (!this.hlsMonitors.has(request.params.monitorId)) {
+          reply.code(500).send({
+            status: "error",
+            message: "monitor not initialized",
+          });
+        }
+        this.hlsMonitors.get(request.params.monitorId).start();
+        reply.code(200).header("Content-Type", "application/json; charset=utf-8").send({ status: "Started monitoring" });
+      });
+  
 
     this.fastify.delete("/monitor",
     {
@@ -755,7 +796,7 @@ export class HLSMonitorService {
           acc[key] = (acc[key] || 0) + 1;
           return acc;
         }, {});
-
+console.log(errorCounts, 222);
         for (const [key, count] of Object.entries(errorCounts)) {
           const [errorType, mediaType, streamId] = key.split('__');
           output.push(
