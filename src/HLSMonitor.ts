@@ -398,6 +398,18 @@ export class HLSMonitor {
     return baseUrl;
   }
 
+  // Add this new helper method
+  private buildPlaylistUrl(baseUrl: string, playlistPath: string): string {
+    try {
+      // Check if the playlist path is already an absolute URL
+      new URL(playlistPath);
+      return playlistPath; // If no error, it's absolute, use as-is
+    } catch {
+      // If error, it's relative, prepend base URL
+      return `${baseUrl}${playlistPath}`;
+    }
+  }
+
   // Helper function to determine variant identifier
   private getVariantIdentifier(mediaM3U8: M3UItem, mediaType: string): string {
     if (mediaType === 'VIDEO') {
@@ -405,9 +417,11 @@ export class HLSMonitor {
     }
     
     // For AUDIO and SUBTITLE, combine groupId with language or name
-    const groupId = mediaM3U8.get("groupId");
-    if (!groupId) return "unknown";
-
+    const groupId = mediaM3U8.get("group-id");
+    if (!groupId) {
+      console.log(Object.keys(mediaM3U8));
+      return "unknown";
+    }
     const language = mediaM3U8.get("language");
     const name = mediaM3U8.get("name");
     const identifier = language || name;
@@ -464,7 +478,7 @@ export class HLSMonitor {
 
       // Process variants
       for (const mediaM3U8 of masterM3U8.items.StreamItem.concat(masterM3U8.items.MediaItem)) {
-        const variantUrl = `${baseUrl}${mediaM3U8.get("uri")}`;
+        const variantUrl = this.buildPlaylistUrl(baseUrl, mediaM3U8.get("uri"));
         let variant: M3U;
         try {
           variant = await manifestLoader.load(variantUrl);

@@ -66,6 +66,8 @@ Your dashboard should now be loaded and showing metrics from your HLS monitor. Y
 - Stream health metrics
 - Various other monitoring panels
 
+![alt text](image.png)
+
 If you don't see data:
 - Verify your HLS monitor is running and generating metrics
 - Check Prometheus targets are healthy

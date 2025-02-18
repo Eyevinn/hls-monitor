@@ -18,6 +18,15 @@ export class HLSMonitorService {
     return this.hlsMonitors;
   }
 
+  private isValidUrl(urlString: string): boolean {
+    try {
+      const url = new URL(urlString);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch (err) {
+      return false;
+    }
+  }
+
   private async routes() {
     this.fastify.register(require("fastify-swagger"), {
       routePrefix: "/docs",
@@ -206,6 +215,19 @@ export class HLSMonitorService {
     async (request, reply) => {
       const body = request.body;
         
+      // Validate URLs
+      const invalidUrls = body.streams
+        .map(s => typeof s === 'string' ? s : s.url)
+        .filter(url => !this.isValidUrl(url));
+
+      if (invalidUrls.length > 0) {
+        reply.code(400).send({
+          status: "error",
+          message: `Invalid URLs detected: ${invalidUrls.join(', ')}`
+        });
+        return;
+      }
+
       // Check for duplicate URLs
       const urls = body.streams.map(s => typeof s === 'string' ? s : s.url);
       const uniqueUrls = [...new Set(urls)];
@@ -355,6 +377,19 @@ export class HLSMonitorService {
         return;
       }
 
+      // Validate URLs
+      const invalidUrls = request.body.streams
+        .map(s => typeof s === 'string' ? s : s.url)
+        .filter(url => !this.isValidUrl(url));
+
+      if (invalidUrls.length > 0) {
+        reply.code(400).send({
+          status: "error",
+          message: `Invalid URLs detected: ${invalidUrls.join(', ')}`
+        });
+        return;
+      }
+
       const monitor = this.hlsMonitors.get(request.params.monitorId);
       
       // Extract URLs from both string and object formats
@@ -371,7 +406,7 @@ export class HLSMonitorService {
       }
 
       // Check against existing streams
-      const currentUrls = monitor.getStreams();
+      const currentUrls = monitor.getStreams().map(s => s.url);
       const alreadyMonitored = newUrls.filter(url => currentUrls.includes(url));
       
       if (alreadyMonitored.length > 0) {
@@ -534,7 +569,6 @@ export class HLSMonitorService {
         this.hlsMonitors.get(request.params.monitorId).start();
         reply.code(200).header("Content-Type", "application/json; charset=utf-8").send({ status: "Started monitoring" });
       });
-  
 
     this.fastify.delete("/monitor",
     {
@@ -704,18 +738,28 @@ export class HLSMonitorService {
         const errors = await monitor.getErrors();
         const manifestErrors = errors.filter(e => e.errorType === ErrorType.MANIFEST_RETRIEVAL);
         
-        // Group by URL, status code, and media type
-        const errorsByUrl = manifestErrors.reduce((acc, error) => {
+        // Get all streams for this monitor
+        const streams = monitor.getStreams();
+        
+        // Create a map to track which streams we've reported errors for
+        const reportedStreams = new Set();
+        
+        // First report any actual errors
+        for (const error of manifestErrors) {
           const key = `${error.streamUrl}__${error.code || 0}__${error.mediaType}__${error.variant}__${error.streamId}`;
-          acc[key] = (acc[key] || 0) + 1;
-          return acc;
-        }, {});
-
-        for (const [key, count] of Object.entries(errorsByUrl)) {
-          const [url, statusCode, mediaType, variant, streamId] = key.split('__');
+          reportedStreams.add(error.streamId);
           output.push(
-            `hls_monitor_manifest_fetch_errors{monitor_id="${monitorId}",url="${url}",status_code="${statusCode}",media_type="${mediaType}",variant="${variant}",stream_id="${streamId}"} ${count}`
+            `hls_monitor_manifest_fetch_errors{monitor_id="${monitorId}",url="${error.streamUrl}",status_code="${error.code || 0}",media_type="${error.mediaType}",variant="${error.variant}",stream_id="${error.streamId}"} 1`
           );
+        }
+        
+        // Then report 0 for all streams that don't have errors
+        for (const stream of streams) {
+          if (!reportedStreams.has(stream.id)) {
+            output.push(
+              `hls_monitor_manifest_fetch_errors{monitor_id="${monitorId}",url="${stream.url}",status_code="200",media_type="MASTER",variant="master",stream_id="${stream.id}"} 0`
+            );
+          }
         }
       }
 
@@ -796,7 +840,6 @@ export class HLSMonitorService {
           acc[key] = (acc[key] || 0) + 1;
           return acc;
         }, {});
-console.log(errorCounts, 222);
         for (const [key, count] of Object.entries(errorCounts)) {
           const [errorType, mediaType, streamId] = key.split('__');
           output.push(

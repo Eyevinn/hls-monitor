@@ -1,4 +1,4 @@
-# HLS Monitor
+# HLS Monitor 📺🔍📊
 
 Service to monitor one or more HLS streams for manifest errors and inconsistencies.
 These are:
