@@ -1,7 +1,7 @@
 type TMockVariantSequence = {
   [mseq: number]: string;
 };
-type TMockSequence = TMockVariantSequence[];
+export type TMockSequence = TMockVariantSequence[];
 
 export const mockHLSMultivariantM3u8 = `#EXTM3U
 #EXT-X-VERSION:3
