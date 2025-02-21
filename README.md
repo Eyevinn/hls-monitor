@@ -81,14 +81,16 @@ Available endpoints are:
 | `/monitor`                       | `POST`   | Start monitoring a new stream                               |
 | `/monitor`                       | `GET`    | List all monitors                                           |
 | `/monitor`                       | `DELETE` | Delete all monitored streams                                |
-| `/monitor/:monitorId`            | `DELETE` | Delete a specific stream                                    |
+| `/monitor/:monitorId`            | `DELETE` | Delete a specific monitor and its streams                   |
 | `/monitor/:monitorId/start`      | `POST`   | Start a specific monitor                                    |
 | `/monitor/:monitorId/stop`       | `POST`   | Stop a specific monitor                                     |
 | `/monitor/:monitorId/status`     | `GET`    | Get the current status of a stream                          |
 | `/monitor/:monitorId/status`     | `DELETE` | Delete the cached status of a stream                        |
 | `/monitor/:monitorId/streams`    | `GET`    | Returns a list of all streams that are currently monitored  |
 | `/monitor/:monitorId/streams`    | `PUT`    | Add a stream to the list of streams that will be monitored  |
-
+| `/monitor/:monitorId/streams`    | `DELETE` | Remove streams from the monitor                             |
+| `/metrics`                       | `GET`    | Get OpenMetrics/Prometheus compatible metrics               |
+| `/docs`                          | `GET`    | Swagger documentation UI                                    |
 A few environment variables can be set to configure the service:
 
 ```text
@@ -117,6 +119,89 @@ monitor.start();
 const errors = await monitor.getErrors();
 console.log(errors);
 ```
+
+## Error Structure
+
+When calling `getErrors()`, the monitor returns an array of error objects in reverse chronological order (newest first). Each error object has the following structure:
+
+```typescript
+type MonitorError = {
+  eid: string;          // Unique error ID
+  date: string;         // ISO timestamp of when the error occurred
+  errorType: ErrorType; // Type of error (e.g., "Manifest Retrieval", "Media Sequence", etc.)
+  mediaType: string;    // Type of media ("MASTER", "VIDEO", "AUDIO", etc.)
+  variant: string;      // Variant identifier (bandwidth or group-id)
+  details: string;      // Detailed error message
+  streamUrl: string;    // URL of the stream where the error occurred
+  streamId: string;     // ID of the stream
+  code?: number;        // HTTP status code (for manifest retrieval errors)
+}
+
+enum ErrorType {
+  MANIFEST_RETRIEVAL = "Manifest Retrieval",
+  MEDIA_SEQUENCE = "Media Sequence",
+  PLAYLIST_SIZE = "Playlist Size",
+  PLAYLIST_CONTENT = "Playlist Content",
+  SEGMENT_CONTINUITY = "Segment Continuity",
+  DISCONTINUITY_SEQUENCE = "Discontinuity Sequence",
+  STALE_MANIFEST = "Stale Manifest"
+}
+```
+
+Example error object:
+```json
+{
+  "eid": "eid-1234567890",
+  "date": "2024-01-30T12:34:56.789Z",
+  "errorType": "Manifest Retrieval",
+  "mediaType": "VIDEO",
+  "variant": "1200000",
+  "details": "Failed to fetch variant manifest (404)",
+  "streamUrl": "https://example.com/stream.m3u8",
+  "streamId": "stream_1",
+  "code": 404
+}
+```
+
+## Metrics
+
+The service exposes a `/metrics` endpoint that provides OpenMetrics/Prometheus-compatible metrics. These metrics can be used to monitor the health and status of your HLS streams in real-time.
+
+### Available Metrics
+
+```text
+# HELP hls_monitor_info Information about the HLS monitor
+# TYPE hls_monitor_info gauge
+hls_monitor_info{monitor_id="...", state="active"} 1
+
+# HELP hls_monitor_manifest_fetch_errors Current manifest fetch errors with details
+# TYPE hls_monitor_manifest_fetch_errors gauge
+hls_monitor_manifest_fetch_errors{monitor_id="...",url="...",status_code="404",media_type="VIDEO",variant="1200000",stream_id="..."} 1
+
+# HELP hls_monitor_stream_total_errors Total number of errors detected per stream since monitor creation
+# TYPE hls_monitor_stream_total_errors counter
+hls_monitor_stream_total_errors{monitor_id="...",stream_id="..."} 42
+
+# HELP hls_monitor_stream_time_since_last_error_seconds Time since the last error was detected for each stream
+# TYPE hls_monitor_stream_time_since_last_error_seconds gauge
+hls_monitor_stream_time_since_last_error_seconds{monitor_id="...",stream_id="..."} 1234.56
+
+# HELP hls_monitor_new_errors_total Count of new errors detected since last check
+# TYPE hls_monitor_new_errors_total counter
+hls_monitor_new_errors_total{monitor_id="...",error_type="Manifest Retrieval",media_type="VIDEO",stream_id="..."} 1
+```
+
+### Using with Prometheus and Grafana
+
+These metrics can be scraped by Prometheus and visualized in Grafana. We provide example configurations and a demo dashboard in the `examples/local-grafana-dashboards` directory.
+
+To get started with monitoring:
+
+1. Configure Prometheus to scrape the `/metrics` endpoint
+2. Import our demo Grafana dashboard
+3. Start monitoring your streams with real-time visualizations
+
+See our [local Grafana setup guide](examples/local-grafana-dashboards/how-to-setup-local-grafana.md) for detailed instructions.
 
 ## [Contributing](CONTRIBUTING.md)
 
