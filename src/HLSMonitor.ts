@@ -34,6 +34,7 @@ type M3U = {
 };
 
 type VariantData = {
+  mediaType?: string;
   mediaSequence?: number;
   newMediaSequence?: number;
   fileSequences?: SegmentURI[];
@@ -46,38 +47,157 @@ type VariantData = {
   cueOut?: number;
   cueIn?: number;
 };
+
+export enum ErrorType {
+  MANIFEST_RETRIEVAL = "Manifest Retrieval",
+  MEDIA_SEQUENCE = "Media Sequence",
+  PLAYLIST_SIZE = "Playlist Size",
+  PLAYLIST_CONTENT = "Playlist Content",
+  SEGMENT_CONTINUITY = "Segment Continuity",
+  DISCONTINUITY_SEQUENCE = "Discontinuity Sequence",
+  STALE_MANIFEST = "Stale Manifest"
+}
+
+type MonitorError = {
+  eid: string;
+  date: string;
+  errorType: ErrorType;
+  mediaType: string;
+  variant: string | number;
+  details: string;
+  streamUrl: string;
+  streamId: string;
+  code?: number;
+}
+
 type StreamData = {
   variants?: { [bandwidth: number]: VariantData };
   lastFetch?: number;
   newTime?: number;
-  errors?: string[];
+  errors: ErrorsList;
 };
 
+type MonitorOptions = {
+  staleLimit?: number;
+  monitorInterval?: number;
+  logConsole?: boolean;
+}
+
+type StreamInput = {
+  id?: string;
+  url: string;
+}
+
+type StreamItem = {
+  id: string;
+  url: string;
+}
+
+export class ErrorsList {
+  private errors: MonitorError[] = [];
+  private LIST_LIMIT: number = parseInt(process.env.ERROR_LIMIT) || 10;
+
+  constructor() {}
+
+  add(error: MonitorError): void {
+    if (!error.eid) {
+      error.eid = `eid-${Date.now()}`;
+    }
+    
+    if (this.errors.length >= this.LIST_LIMIT) {
+      this.remove();
+    }
+    this.errors.push(error);
+  }
+
+  remove(): void {
+    this.errors.shift();
+  }
+
+  clear(): void {
+    this.errors = [];
+  }
+
+  size(): number {
+    return this.errors.length;
+  }
+
+  listErrors(): MonitorError[] {
+    return this.errors;
+  }
+} 
+
 export class HLSMonitor {
-  private streams: string[] = [];
+  private streams: StreamItem[] = [];
+  private nextStreamId: number = 1;
   private state: State;
   private streamData = new Map<string, StreamData>();
   private staleLimit: number;
+  private logConsole: boolean;
   private updateInterval: number;
   private lock = new Mutex();
   private id: string;
-  private logConsole: boolean;
+  private lastChecked: number;
+  private createdAt: string;
+  private manifestFetchErrors: Map<string, {code: number, time: number}> = new Map();
+  private manifestErrorCount: number = 0;  // Track total manifest errors
+  private totalErrorsPerStream: Map<string, number> = new Map();  // Track total errors per stream
+  private lastErrorTimePerStream: Map<string, number> = new Map();  // Track last error time per stream
+  private usedStreamIds: Set<string> = new Set(); // Track used IDs
+
+  private normalizeStreamId(customId: string): string {
+    // Convert to lowercase and replace whitespace with underscore
+    let normalizedId = customId.toLowerCase().replace(/\s+/g, '_');
+    // Cap at 50 characters
+    normalizedId = normalizedId.slice(0, 50);
+    
+    // If ID already exists, add numeric suffix
+    let finalId = normalizedId;
+    let counter = 1;
+    while (this.usedStreamIds.has(finalId)) {
+      finalId = `${normalizedId}_${counter}`;
+      counter++;
+    }
+    
+    return finalId;
+  }
+
+  private generateStreamId(input: string | StreamInput): string {
+    if (typeof input === 'string') {
+      const autoId = `stream_${this.nextStreamId++}`;
+      this.usedStreamIds.add(autoId);
+      return autoId;
+    }
+    
+    if (input.id) {
+      const normalizedId = this.normalizeStreamId(input.id);
+      this.usedStreamIds.add(normalizedId);
+      return normalizedId;
+    }
+    
+    const autoId = `stream_${this.nextStreamId++}`;
+    this.usedStreamIds.add(autoId);
+    return autoId;
+  }
 
   /**
    * @param hlsStreams The streams to monitor.
    * @param [staleLimit] The monitor interval for streams overrides the default (6000ms) monitor interval and the HLS_MONITOR_INTERVAL environment variable.
    */
-  constructor(hlsStreams: string[], staleLimit?: number, logConsole?: boolean) {
+  constructor(streamInputs: (string | StreamInput)[], options: MonitorOptions = { staleLimit: 6000, monitorInterval: 3000, logConsole: true }) {
     this.id = uuidv4();
-    this.streams = hlsStreams;
+    this.streams = streamInputs.map(input => {
+      const url = typeof input === 'string' ? input : input.url;
+      return {
+        id: this.generateStreamId(input),
+        url
+      };
+    });
     this.state = State.IDLE;
-    if (staleLimit) {
-      this.staleLimit = staleLimit;
-    } else {
-      this.staleLimit = parseInt(process.env.HLS_MONITOR_INTERVAL || "6000");
-    }
-    this.updateInterval = this.staleLimit / 2;
-    this.logConsole = logConsole;
+    this.staleLimit = parseInt(process.env.HLS_MONITOR_INTERVAL) || options.staleLimit;
+    this.updateInterval = options.monitorInterval || this.staleLimit / 2;
+    this.logConsole = options.logConsole;
+    this.createdAt = new Date().toISOString();
   }
 
   /**
@@ -105,6 +225,7 @@ export class HLSMonitor {
     this.state = State.ACTIVE;
     while (this.state === State.ACTIVE) {
       try {
+        this.lastChecked = Date.now();
         await this.parseManifests(this.streams);
         await timer(this.updateInterval);
       } catch (error) {
@@ -122,26 +243,35 @@ export class HLSMonitor {
     return this.updateInterval;
   }
 
-  async getErrors(): Promise<Object[]> {
-    let errors: Object[] = [];
+  getLastChecked(): number {
+    return this.lastChecked;
+  }
+
+  getState(): State {
+    return this.state;
+  } 
+
+  setState(state: String): void {
+    this.state = state as State;
+  } 
+
+  async getErrors(): Promise<MonitorError[]> {
+    let errors: MonitorError[] = [];
     let release = await this.lock.acquire();
-    for (const [key, data] of this.streamData.entries()) {
-      if (data.errors.length > 0) {
-        errors.push({
-          url: key,
-          errors: data.errors,
-        });
+    for (const [_, data] of this.streamData.entries()) {
+      if (data.errors.size() > 0) {
+        errors = errors.concat(data.errors.listErrors());
       }
     }
     release();
-    return errors;
+    return errors.reverse();
   }
 
   async clearErrors() {
     let release = await this.lock.acquire();
     for (const [key, data] of this.streamData.entries()) {
-      if (data.errors.length > 0) {
-        data.errors = [];
+      if (data.errors.size() > 0) {
+        data.errors.clear();
         this.streamData.set(key, data);
       }
     }
@@ -157,7 +287,12 @@ export class HLSMonitor {
 
   async start() {
     if (this.state === State.ACTIVE) return;
-    await this.reset();
+    
+    // Only reset if we don't have any existing streamData
+    if (this.streamData.size === 0) {
+      await this.reset();
+    }
+    
     console.log(`Starting HLSMonitor: ${this.id}`);
     this.create();
   }
@@ -202,16 +337,21 @@ export class HLSMonitor {
    * to the list of streams to monitor
    * @returns The current list of streams to monitor
    */
-  async update(streams: string[]): Promise<string[]> {
+  async update(newStreamInputs: (string | StreamInput)[]): Promise<StreamItem[]> {
     let release = await this.lock.acquire();
-    for (const stream of streams) {
-      if (!this.streams.includes(stream)) {
-        this.streams.push(stream);
-      }
+    try {
+      const newStreams = newStreamInputs.map(input => {
+        const url = typeof input === 'string' ? input : input.url;
+        return {
+          id: this.generateStreamId(input),
+          url
+        };
+      });
+      this.streams = [...this.streams, ...newStreams];
+      return this.streams;
+    } finally {
+      release();
     }
-    release();
-    console.log(`List of streams updated for ${this.id}. Current streams ${this.streams}`);
-    return this.streams;
   }
 
   /**
@@ -219,21 +359,33 @@ export class HLSMonitor {
    * @param streams The streams to remove
    * @returns The current list of streams to monitor
    */
-  async remove(streams: any): Promise<string[]> {
+  async removeStream(streamId: string): Promise<StreamItem[]> {
     let release = await this.lock.acquire();
-    for (const stream of streams) {
-      if (this.streams.includes(stream)) {
-        this.streams.splice(this.streams.indexOf(stream), 1);
-        const baseUrl = this.getBaseUrl(stream);
-        this.streamData.delete(baseUrl);
-        console.log(`Removed stream: ${baseUrl} from monitor: ${this.id}`);
+    try {
+      const streamToRemove = this.streams.find(s => s.id === streamId);
+      if (!streamToRemove) {
+        throw new Error(`Stream with ID ${streamId} not found`);
       }
+      
+      // Remove from streams array
+      this.streams = this.streams.filter(s => s.id !== streamId);
+      
+      // Clean up associated data
+      const baseUrl = this.getBaseUrl(streamToRemove.url);
+      this.streamData.delete(baseUrl);
+      this.totalErrorsPerStream.delete(streamId);
+      this.lastErrorTimePerStream.delete(streamId);
+      this.manifestFetchErrors.delete(streamToRemove.url);
+      
+      this.usedStreamIds.delete(streamId);
+      
+      return this.streams;
+    } finally {
+      release();
     }
-    release();
-    return this.streams;
   }
 
-  getStreamUrls(): string[] {
+  getStreams(): StreamItem[] {
     return this.streams;
   }
 
@@ -246,46 +398,127 @@ export class HLSMonitor {
     return baseUrl;
   }
 
-  private async parseManifests(streamUrls: any[]): Promise<void> {
-    if (streamUrls.length === 0) {
-      console.error("No stream urls to parse");
-      return;
+  // Add this new helper method
+  private buildPlaylistUrl(baseUrl: string, playlistPath: string): string {
+    try {
+      // Check if the playlist path is already an absolute URL
+      new URL(playlistPath);
+      return playlistPath; // If no error, it's absolute, use as-is
+    } catch {
+      // If error, it's relative, prepend base URL
+      return `${baseUrl}${playlistPath}`;
     }
+  }
+
+  // Helper function to determine variant identifier
+  private getVariantIdentifier(mediaM3U8: M3UItem, mediaType: string): string {
+    if (mediaType === 'VIDEO') {
+      return mediaM3U8.get("bandwidth") || "unknown";
+    }
+    
+    // For AUDIO and SUBTITLE, combine groupId with language or name
+    const groupId = mediaM3U8.get("group-id");
+    if (!groupId) {
+      console.log(Object.keys(mediaM3U8));
+      return "unknown";
+    }
+    const language = mediaM3U8.get("language");
+    const name = mediaM3U8.get("name");
+    const identifier = language || name;
+
+    return identifier ? `${groupId}__${identifier}` : groupId;
+  }
+
+  private async parseManifests(streamUrls: StreamItem[]): Promise<void> {
     const manifestLoader = new HTTPManifestLoader();
-    for (const streamUrl of streamUrls) {
+    for (const stream of streamUrls) {
       let masterM3U8: M3U;
+      let baseUrl = this.getBaseUrl(stream.url);
+      let release = await this.lock.acquire();
+      let data: StreamData = this.streamData.get(baseUrl) || {
+        variants: {},
+        errors: new ErrorsList()
+      };
+
       try {
-        masterM3U8 = await manifestLoader.load(streamUrl);
+        masterM3U8 = await manifestLoader.load(stream.url);
+        this.manifestFetchErrors.delete(stream.url);
       } catch (error) {
         console.error(error);
-        console.log("Failed to fetch stream url:", streamUrl);
+        console.log("Failed to fetch master manifest:", stream.url);
+        
+        if (error.isLastRetry) {
+          this.manifestFetchErrors.set(stream.url, {
+            code: error.statusCode || 0,
+            time: Date.now()
+          });
+          
+          const manifestError: MonitorError = {
+            eid: `eid-${Date.now()}`,
+            date: new Date().toISOString(),
+            errorType: ErrorType.MANIFEST_RETRIEVAL,
+            mediaType: "MASTER",
+            variant: "master",
+            details: `Failed to fetch master manifest (${error.statusCode}): ${stream.url}`,
+            streamUrl: stream.url,
+            streamId: stream.id,
+            code: error.statusCode || 0
+          };
+
+          data.errors.add(manifestError);
+          this.manifestErrorCount++;
+          this.totalErrorsPerStream.set(stream.id, (this.totalErrorsPerStream.get(stream.id) || 0) + 1);
+          this.lastErrorTimePerStream.set(stream.id, Date.now());
+          release();
+          continue;
+        }
+        release();
         continue;
       }
-      let baseUrl = this.getBaseUrl(streamUrl);
-      let release = await this.lock.acquire();
-      let data: StreamData = this.streamData.get(baseUrl);
-      if (!data) {
-        data = {
-          variants: {},
-        };
-      }
-      let error: string;
+
+      // Process variants
       for (const mediaM3U8 of masterM3U8.items.StreamItem.concat(masterM3U8.items.MediaItem)) {
+        const variantUrl = this.buildPlaylistUrl(baseUrl, mediaM3U8.get("uri"));
         let variant: M3U;
         try {
-          variant = await manifestLoader.load(`${baseUrl}${mediaM3U8.get("uri")}`);
+          variant = await manifestLoader.load(variantUrl);
+          this.manifestFetchErrors.delete(variantUrl);
         } catch (error) {
-          release();
-          return error;
+          console.log("Failed to fetch variant manifest:", variantUrl);
+          
+            this.manifestFetchErrors.set(variantUrl, {
+              code: error.statusCode || 0,
+              time: Date.now()
+            });
+            
+            const manifestError: MonitorError = {
+              eid: `eid-${Date.now()}`,
+              date: new Date().toISOString(),
+              errorType: ErrorType.MANIFEST_RETRIEVAL,
+              mediaType: mediaM3U8.get("type") || "VIDEO",
+              variant: this.getVariantIdentifier(mediaM3U8, mediaM3U8.get("type") || "VIDEO"),
+              details: `Failed to fetch variant manifest (${error.statusCode}): ${variantUrl}`,
+              streamUrl: baseUrl,
+              streamId: stream.id,
+              code: error.statusCode || 0
+            };
+            data.errors.add(manifestError);
+            this.manifestErrorCount++;
+            this.totalErrorsPerStream.set(stream.id, (this.totalErrorsPerStream.get(stream.id) || 0) + 1);
+            this.lastErrorTimePerStream.set(stream.id, Date.now());
+            continue;
         }
+        
         let equalMseq = false;
         let bw = mediaM3U8.get("bandwidth");
-        if (mediaM3U8.get("type") === 'AUDIO') {
-          bw = mediaM3U8.get("language");
+        if (["AUDIO", "SUBTITLES"].includes(mediaM3U8.get("type"))) {
+          bw = `${mediaM3U8.get("group-id")};${mediaM3U8.get("language") || mediaM3U8.get("name") || ""}`;
         }
+
         const currTime = new Date().toISOString();
         if (!data.variants[bw]) {
           data.variants[bw] = {
+            mediaType: mediaM3U8.get("type") || "VIDEO",
             mediaSequence: null,
             newMediaSequence: null,
             fileSequences: null,
@@ -321,7 +554,8 @@ export class HLSMonitor {
   
           data.lastFetch = Date.now();
           data.newTime = Date.now();
-          data.errors = [];
+          data.errors.clear();
+
           this.streamData.set(baseUrl, data);
           continue;
         }
@@ -344,14 +578,23 @@ export class HLSMonitor {
 
         // Validate mediaSequence
         if (data.variants[bw].mediaSequence > variant.get("mediaSequence")) {
-          error = `[${currTime}] Error in mediaSequence! (BW:${bw}) Expected mediaSequence >= ${data.variants[bw].mediaSequence}. Got: ${variant.get("mediaSequence")}`;
-          console.error(`[${baseUrl}]${error}`);
-          if (data.errors.length < ERROR_LIMIT) {
-            data.errors.push(error);
-          } else if (data.errors.length > 0) {
-            data.errors.shift();
-            data.errors.push(error);
-          }
+          const mediaType = data.variants[bw].mediaType;
+          const mediaSequence = data.variants[bw].mediaSequence;
+          const latestMediaSequence = variant.get("mediaSequence");
+          const error: MonitorError = {
+            eid: `eid-${Date.now()}`,
+            date: currTime,
+            errorType: ErrorType.MEDIA_SEQUENCE,
+            mediaType: mediaType,
+            variant: bw,
+            details: `Expected mediaSequence >= ${mediaSequence}. Got: ${latestMediaSequence}`,
+            streamUrl: baseUrl,
+            streamId: stream.id
+          };
+          console.error(`[${baseUrl}]`, error);
+          data.errors.add(error);
+          this.totalErrorsPerStream.set(stream.id, (this.totalErrorsPerStream.get(stream.id) || 0) + 1);
+          this.lastErrorTimePerStream.set(stream.id, Date.now());
           continue;
         } else if (data.variants[bw].mediaSequence === variant.get("mediaSequence")) {
           data.variants[bw].newMediaSequence = data.variants[bw].mediaSequence;
@@ -365,16 +608,22 @@ export class HLSMonitor {
         if (equalMseq && data.variants[bw].fileSequences.length > 0) {
           // Validate playlist Size
           if (data.variants[bw].fileSequences.length > currentSegUriList.length) {
-            error = `[${currTime}] Error in playlist! (BW:${bw}) Expected playlist size in mseq(${variant.get("mediaSequence")}) to be: ${
-              data.variants[bw].fileSequences.length
-            }. Got: ${currentSegUriList.length}`;
-            console.error(`[${baseUrl}]${error}`);
-            if (data.errors.length < ERROR_LIMIT) {
-              data.errors.push(error);
-            } else if (data.errors.length > 0) {
-              data.errors.shift();
-              data.errors.push(error);
-            }
+            const error: MonitorError = {
+              eid: `eid-${Date.now()}`,
+              date: currTime,
+              errorType: ErrorType.PLAYLIST_SIZE,
+              mediaType: data.variants[bw].mediaType,
+              variant: bw,
+              details: `Expected playlist size in mseq(${variant.get("mediaSequence")}) to be: ${
+                data.variants[bw].fileSequences.length
+              }. Got: ${currentSegUriList.length}`,
+              streamUrl: baseUrl,
+              streamId: stream.id
+            };
+            console.error(`[${baseUrl}]`, error);
+            data.errors.add(error);
+            this.totalErrorsPerStream.set(stream.id, (this.totalErrorsPerStream.get(stream.id) || 0) + 1);
+            this.lastErrorTimePerStream.set(stream.id, Date.now());
           } else if (data.variants[bw].fileSequences.length === currentSegUriList.length) {
             // Validate playlist contents
             for (let i = 0; i < currentSegUriList.length; i++) {
@@ -383,18 +632,24 @@ export class HLSMonitor {
                 let shouldBeSegURI = new URL("http://.mock.com/" + data.variants[bw].fileSequences[i]).pathname.slice(-5);
                 let newSegURI = new URL("http://.mock.com/" + currentSegUriList[i]).pathname.slice(-5);
                 if (newSegURI !== shouldBeSegURI) {
-                  error = `[${currTime}] Error in playlist! (BW:${bw}) Expected playlist item-uri in mseq(${variant.get("mediaSequence")}) at index(${i}) to be: '${
-                    data.variants[bw].fileSequences[i]
-                  }'. Got: '${currentSegUriList[i]}'`;
-                  console.error(`[${baseUrl}]${error}`);
-                  if (data.errors.length < ERROR_LIMIT) {
-                    data.errors.push(error);
-                  } else if (data.errors.length > 0) {
-                    data.errors.shift();
-                    data.errors.push(error);
-                  }
-                  break;
+                  const error: MonitorError = {
+                    eid: `eid-${Date.now()}`,
+                    date: currTime,
+                    errorType: ErrorType.PLAYLIST_CONTENT,
+                    mediaType: data.variants[bw].mediaType,
+                    variant: bw,
+                    details: `Expected playlist item-uri in mseq(${variant.get("mediaSequence")}) at index(${i}) to be: '${
+                      data.variants[bw].fileSequences[i]
+                    }'. Got: '${currentSegUriList[i]}'`,
+                    streamUrl: baseUrl,
+                    streamId: stream.id
+                  };
+                  console.error(`[${baseUrl}]`, error);
+                  data.errors.add(error);
+                  this.totalErrorsPerStream.set(stream.id, (this.totalErrorsPerStream.get(stream.id) || 0) + 1);
+                  this.lastErrorTimePerStream.set(stream.id, Date.now());
                 }
+                break;
               }
             }
           }
@@ -404,28 +659,26 @@ export class HLSMonitor {
           if (mseqDiff < data.variants[bw].fileSequences.length) {
             const expectedfileSequence = data.variants[bw].fileSequences[mseqDiff];
 
-            // if (currentSegUriList[0] !== expectedfileSequence) {
-            //   error = `[${currTime}] Error in playlist! (BW:${bw}) Faulty Segment Continuity! Expected first item-uri in mseq(${variant.get(
-            //     "mediaSequence"
-            //   )}) to be: '${expectedfileSequence}'. Got: '${currentSegUriList[0]}'`;
-            //   console.error(`[${baseUrl}]${error}`);
-            //   data.errors.push(error);
-            // }
-
             // [!] Compare the end of filename instead...
             let shouldBeSegURI = new URL("http://.mock.com/" + expectedfileSequence).pathname.slice(-5);
             let newSegURI = new URL("http://.mock.com/" + currentSegUriList[0]).pathname.slice(-5);
             if (newSegURI !== shouldBeSegURI) {
-              error = `[${currTime}] Error in playlist! (BW:${bw}) Faulty Segment Continuity! Expected first item-uri in mseq(${variant.get(
-                "mediaSequence"
-              )}) to be: '${expectedfileSequence}'. Got: '${currentSegUriList[0]}'`;
-              console.error(`[${baseUrl}]${error}`);
-              if (data.errors.length < ERROR_LIMIT) {
-                data.errors.push(error);
-              } else if (data.errors.length > 0) {
-                data.errors.shift();
-                data.errors.push(error);
-              }
+              const error: MonitorError = {
+                eid: `eid-${Date.now()}`,
+                date: currTime,
+                errorType: ErrorType.SEGMENT_CONTINUITY,
+                mediaType: data.variants[bw].mediaType,
+                variant: bw,
+                details: `Faulty Segment Continuity! Expected first item-uri in mseq(${variant.get(
+                  "mediaSequence"
+                )}) to be: '${expectedfileSequence}'. Got: '${currentSegUriList[0]}'`,
+                streamUrl: baseUrl,
+                streamId: stream.id
+              };
+              console.error(`[${baseUrl}]`, error);
+              data.errors.add(error);
+              this.totalErrorsPerStream.set(stream.id, (this.totalErrorsPerStream.get(stream.id) || 0) + 1);
+              this.lastErrorTimePerStream.set(stream.id, Date.now());
             }
           }
         }
@@ -442,16 +695,22 @@ export class HLSMonitor {
           const expectedDseq = data.variants[bw].discontinuitySequence + 1;
           // Warn: Assuming that only ONE disc-tag has been removed between media-sequences
           if (mseqDiff === 1 && expectedDseq !== variant.get("discontinuitySequence")) {
-            error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Wrong count increment in mseq(${variant.get(
-              "mediaSequence"
-            )}) - Expected: ${expectedDseq}. Got: ${variant.get("discontinuitySequence")}`;
-            console.error(`[${baseUrl}]${error}`);
-            if (data.errors.length < ERROR_LIMIT) {
-              data.errors.push(error);
-            } else if (data.errors.length > 0) {
-              data.errors.shift();
-              data.errors.push(error);
-            }
+            const error: MonitorError = {
+              eid: `eid-${Date.now()}`,
+              date: currTime,
+              errorType: ErrorType.DISCONTINUITY_SEQUENCE,
+              mediaType: data.variants[bw].mediaType,
+              variant: bw,
+              details: `Wrong count increment in mseq(${variant.get(
+                "mediaSequence"
+              )}) - Expected: ${expectedDseq}. Got: ${variant.get("discontinuitySequence")}`,
+              streamUrl: baseUrl,
+              streamId: stream.id
+            };
+            console.error(`[${baseUrl}]`, error);
+            data.errors.add(error);
+            this.totalErrorsPerStream.set(stream.id, (this.totalErrorsPerStream.get(stream.id) || 0) + 1);
+            this.lastErrorTimePerStream.set(stream.id, Date.now());
           }
         } else {
           // Case where mseq stepped larger than 1. Check if dseq incremented properly
@@ -470,16 +729,22 @@ export class HLSMonitor {
                 }
               }
               if (dseqDiff !== foundDiscCount) {
-                error = `[${currTime}] Error in discontinuitySequence! (BW:${bw}) Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
-                  data.variants[bw].discontinuitySequence
-                }. Got: ${variant.get("discontinuitySequence")}`;
-                console.error(`[${baseUrl}]${error}`);
-                if (data.errors.length < ERROR_LIMIT) {
-                  data.errors.push(error);
-                } else if (data.errors.length > 0) {
-                  data.errors.shift();
-                  data.errors.push(error);
-                }
+                const error: MonitorError = {
+                  eid: `eid-${Date.now()}`,
+                  date: currTime,
+                  errorType: ErrorType.DISCONTINUITY_SEQUENCE,
+                  mediaType: data.variants[bw].mediaType,
+                  variant: bw,
+                  details: `Early count increment in mseq(${variant.get("mediaSequence")}) - Expected: ${
+                    data.variants[bw].discontinuitySequence
+                  }. Got: ${variant.get("discontinuitySequence")}`,
+                  streamUrl: baseUrl,
+                  streamId: stream.id
+                };
+                console.error(`[${baseUrl}]`, error);
+                data.errors.add(error);
+                this.totalErrorsPerStream.set(stream.id, (this.totalErrorsPerStream.get(stream.id) || 0) + 1);
+                this.lastErrorTimePerStream.set(stream.id, Date.now());
               }
             }
           }
@@ -505,31 +770,51 @@ export class HLSMonitor {
       const lastFetch = data.newTime ? data.newTime : data.lastFetch;
       const interval = Date.now() - lastFetch;
       if (interval > this.staleLimit) {
-        error = `[${new Date().toISOString()}] Stale manifest! Expected: ${this.staleLimit}ms. Got: ${interval}ms`;
-        console.error(`[${baseUrl}]${error}`);
-        if (data.errors.length < ERROR_LIMIT) {
-          data.errors.push(error);
-        } else if (data.errors.length > 0) {
-          data.errors.shift();
-          data.errors.push(error);
-        }
+        const error: MonitorError = {
+          eid: `eid-${Date.now()}`,
+          date: new Date().toISOString(),
+          errorType: ErrorType.STALE_MANIFEST,
+          mediaType: "ALL",
+          variant: "ALL",
+          details: `Expected: ${this.staleLimit}ms. Got: ${interval}ms`,
+          streamUrl: baseUrl,
+          streamId: stream.id
+        };
+        console.error(`[${baseUrl}]`, error);
+        data.errors.add(error);
+        this.totalErrorsPerStream.set(stream.id, (this.totalErrorsPerStream.get(stream.id) || 0) + 1);
+        this.lastErrorTimePerStream.set(stream.id, Date.now());
       }
-      let currErrors = this.streamData.get(baseUrl).errors;
-      currErrors.concat(data.errors);
+
       this.streamData.set(baseUrl, {
         variants: data.variants,
         lastFetch: data.newTime ? data.newTime : data.lastFetch,
-        errors: currErrors,
+        errors: data.errors,
       });
 
       this.printSummary(data);
 
-      if (error) {
-        console.log(`[${new Date().toISOString()}] Master manifest loaded with error: ${this.getBaseUrl(streamUrl)}`);
-      } else {
-        // console.log(`[${new Date().toISOString()}] Master manifest succefully loaded: ${this.getBaseUrl(streamUrl)}`);
-      }
       release();
     }
+  }
+
+  getManifestFetchErrors(): Map<string, {code: number, time: number}> {
+    return this.manifestFetchErrors;
+  }
+
+  getCreatedAt(): string {
+    return this.createdAt;
+  }
+
+  getTotalErrorsPerStream(): Map<string, number> {
+    return this.totalErrorsPerStream;
+  }
+
+  getLastErrorTimePerStream(): Map<string, number> {
+    return this.lastErrorTimePerStream;
+  }
+
+  getManifestErrorCount(): number {
+    return this.manifestErrorCount;
   }
 }

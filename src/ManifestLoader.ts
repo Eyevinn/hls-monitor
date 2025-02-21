@@ -34,7 +34,8 @@ export class HTTPManifestLoader extends AbstractManifestParser implements IManif
         if (response.ok) {
           this.parse(response.body as Readable).then(resolve);
         } else {
-          reject(`Failed to fetch manifest (${response.status}): ` + response.statusText);
+          console.log(`Failed to fetch manifest (${response.status}): ` + response.statusText);
+          reject({statusCode: response.status, statusText: response.statusText});
         }
       })
       .catch(reject);
