@@ -76,9 +76,8 @@ describe("HLSMonitor,", () => {
       await hls_monitor.stop();
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
-      const expectedError = "Error in playlist! (BW:1212000) Faulty Segment Continuity! Expected first item-uri in mseq(2) to be: 'index_0_2.ts'. Got: 'index_0_1.ts'";
-      //console.log(JSON.stringify(MonitoredErrors[0]["errors"], null, 2));
-      expect(MonitoredErrors[0]["errors"][0]).toContain(expectedError);
+      const expectedError = "Faulty Segment Continuity! Expected first item-uri in mseq(2) to be: 'index_0_2.ts'. Got: 'index_0_1.ts'";
+      expect(MonitoredErrors[MonitoredErrors.length - 1].details).toContain(expectedError);
     });
 
     it("should return error if: next mseq is the same and contains any wrong segment", async () => {
@@ -99,8 +98,8 @@ describe("HLSMonitor,", () => {
       await hls_monitor.stop();
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
-      const expectedError = "Error in playlist! (BW:1212000) Expected playlist item-uri in mseq(2) at index(0) to be: 'index_0_2.ts'. Got: 'index_0_3.ts'";
-      expect(MonitoredErrors[0]["errors"][0]).toContain(expectedError);
+      const expectedError = "Expected playlist item-uri in mseq(2) at index(0) to be: 'index_0_2.ts'. Got: 'index_0_3.ts'";
+      expect(MonitoredErrors[MonitoredErrors.length - 1].details).toContain(expectedError);
     });
 
     it("should return error if: next mseq is the same and playlist size do not match", async () => {
@@ -125,8 +124,8 @@ describe("HLSMonitor,", () => {
       await hls_monitor.stop();
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
-      const expectedError = "Error in playlist! (BW:1212000) Expected playlist size in mseq(13) to be: 5. Got: 4";
-      expect(MonitoredErrors[0]["errors"][0]).toContain(expectedError);
+      const expectedError = "Expected playlist size in mseq(13) to be: 5. Got: 4";
+      expect(MonitoredErrors[MonitoredErrors.length - 1].details).toContain(expectedError);
     });
 
     it("should return error if: prev mseq is greater than next mseq", async () => {
@@ -147,8 +146,8 @@ describe("HLSMonitor,", () => {
       await hls_monitor.stop();
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
-      const expectedError = "Error in mediaSequence! (BW:1212000) Expected mediaSequence >= 3. Got: 2";
-      expect(MonitoredErrors[0]["errors"][0]).toContain(expectedError);
+      const expectedError = "Expected mediaSequence >= 3. Got: 2";
+      expect(MonitoredErrors[MonitoredErrors.length - 1].details).toContain(expectedError);
     });
 
     it("should return error if: next mseq does not increment discontinuity-sequence correctly, too big increment", async () => {
@@ -169,8 +168,8 @@ describe("HLSMonitor,", () => {
       await hls_monitor.stop();
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
-      const expectedError = "Error in discontinuitySequence! (BW:1212000) Wrong count increment in mseq(3) - Expected: 11. Got: 12";
-      expect(MonitoredErrors[0]["errors"][0]).toContain(expectedError);
+      const expectedError = "Wrong count increment in mseq(3) - Expected: 11. Got: 12";
+      expect(MonitoredErrors[MonitoredErrors.length - 1].details).toContain(expectedError);
     });
 
     it("should return error if: next mseq does not increment discontinuity-sequence correctly, no increment", async () => {
@@ -191,8 +190,8 @@ describe("HLSMonitor,", () => {
       await hls_monitor.stop();
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
-      const expectedError = "Error in discontinuitySequence! (BW:1212000) Wrong count increment in mseq(3) - Expected: 11. Got: 10";
-      expect(MonitoredErrors[0]["errors"][0]).toContain(expectedError);
+      const expectedError = "Wrong count increment in mseq(3) - Expected: 11. Got: 10";
+      expect(MonitoredErrors[MonitoredErrors.length - 1].details).toContain(expectedError);
     });
 
     it("should return error if: next mseq does not increment discontinuity-sequence correctly, early increment (tag at top)", async () => {
@@ -213,8 +212,8 @@ describe("HLSMonitor,", () => {
       await hls_monitor.stop();
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
-      const expectedError = "Error in discontinuitySequence! (BW:1212000) Early count increment in mseq(22) - Expected: 10. Got: 11";
-      expect(MonitoredErrors[0]["errors"][0]).toContain(expectedError);
+      const expectedError = "Early count increment in mseq(22) - Expected: 10. Got: 11";
+      expect(MonitoredErrors[MonitoredErrors.length - 1].details).toContain(expectedError);
     });
 
     it("should return error if: next mseq does not increment discontinuity-sequence correctly, early increment (tag under top)", async () => {
@@ -235,8 +234,8 @@ describe("HLSMonitor,", () => {
       await hls_monitor.stop();
       const MonitoredErrors = await hls_monitor.getErrors();
       // Assert
-      const expectedError = "Error in discontinuitySequence! (BW:2424000) Early count increment in mseq(21) - Expected: 10. Got: 11";
-      expect(MonitoredErrors[0]["errors"][1]).toContain(expectedError);
+      const expectedError = "Early count increment in mseq(21) - Expected: 10. Got: 11";
+      expect(MonitoredErrors[0].details).toContain(expectedError);
     });
 
     it("should return error if: next mseq does not increment discontinuity-sequence correctly, early increment (tag under top) 2nd case", async () => {
