@@ -1,6 +1,6 @@
 {
   "name": "@eyevinn/hls-monitor",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Library to monitor a hls stream(s)",
   "main": "dist/index.js",
   "scripts": {
