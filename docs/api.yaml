@@ -1,0 +1,331 @@
+swagger: '2.0'
+info:
+  title: HLS Monitor
+  description: HLSMonitor API
+  version: 0.0.1
+definitions: {}
+paths:
+  /monitor:
+    post:
+      description: >-
+        Start monitoring new streams. Supports both simple URL strings and
+        objects with custom IDs
+      parameters:
+        - name: body
+          in: body
+          schema:
+            type: object
+            required:
+              - streams
+            properties:
+              streams:
+                type: array
+                items:
+                  oneOf:
+                    - type: string
+                    - type: object
+                      properties:
+                        id:
+                          type: string
+                        url:
+                          type: string
+                      required:
+                        - url
+              stale_limit:
+                type: number
+                nullable: true
+                default: 6000
+              monitor_interval:
+                type: number
+                nullable: true
+            example:
+              streams:
+                - http://example.com/master.m3u8
+                - id: custom_stream_1
+                  url: http://example.com/master2.m3u8
+              stale_limit: 6000
+              monitor_interval: 3000
+      responses:
+        '200':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              streams:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    url:
+                      type: string
+              monitorId:
+                type: string
+              stale_limit:
+                type: number
+              monitor_interval:
+                type: number
+            example:
+              status: Created a new hls-monitor
+              streams:
+                - id: stream_1
+                  url: http://example.com/master.m3u8
+                - id: custom_stream
+                  url: http://example.com/master2.m3u8
+              monitorId: 550e8400-e29b-41d4-a716-446655440000
+              stale_limit: 6000
+              monitor_interval: 3000
+        '400':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              message:
+                type: string
+    get:
+      responses:
+        '200':
+          description: Default Response
+    delete:
+      description: Stop and delete all monitors
+      responses:
+        '200':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              deletedCount:
+                type: number
+              deletedMonitors:
+                type: array
+                items:
+                  type: string
+  /monitor/{monitorId}/streams:
+    get:
+      description: Returns a list of all streams that are currently monitored
+      parameters:
+        - type: string
+          required: true
+          in: path
+          name: monitorId
+      responses:
+        '200':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              streams:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    url:
+                      type: string
+            example:
+              streams:
+                - id: stream_1
+                  url: http://example.com/master.m3u8
+                - id: custom_stream
+                  url: http://example.com/master2.m3u8
+        '404':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              message:
+                type: string
+    put:
+      description: >-
+        Add streams to the list of streams that will be monitored. Supports both
+        URL strings and objects with custom IDs
+      parameters:
+        - name: body
+          in: body
+          schema:
+            type: object
+            required:
+              - streams
+            properties:
+              streams:
+                type: array
+                items:
+                  oneOf:
+                    - type: string
+                    - type: object
+                      properties:
+                        id:
+                          type: string
+                        url:
+                          type: string
+                      required:
+                        - url
+            example:
+              streams:
+                - http://example.com/master.m3u8
+                - id: custom_stream_1
+                  url: http://example.com/master2.m3u8
+        - type: string
+          required: true
+          in: path
+          name: monitorId
+      responses:
+        '201':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              streams:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    url:
+                      type: string
+            example:
+              message: Added streams to monitor
+              streams:
+                - id: stream_1
+                  url: http://example.com/master.m3u8
+                - id: custom_stream
+                  url: http://example.com/master2.m3u8
+        '400':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              message:
+                type: string
+        '500':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              message:
+                type: string
+  /monitor/{monitorId}/stream:
+    delete:
+      description: Remove a stream from the monitor
+      parameters:
+        - type: string
+          required: true
+          in: query
+          name: streamId
+        - type: string
+          required: true
+          in: path
+          name: monitorId
+      responses:
+        '200':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              streams:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: number
+                    url:
+                      type: string
+  /monitor/{monitorId}/status:
+    get:
+      description: Get the current status of a stream
+      parameters:
+        - type: string
+          required: true
+          in: path
+          name: monitorId
+      responses:
+        '200':
+          description: Default Response
+    delete:
+      description: Delete the cached status of a stream
+      parameters:
+        - type: string
+          required: true
+          in: path
+          name: monitorId
+      responses:
+        '200':
+          description: Default Response
+  /monitor/{monitorId}/stop:
+    post:
+      description: Stop a specific monitor
+      parameters:
+        - type: string
+          required: true
+          in: path
+          name: monitorId
+      responses:
+        '200':
+          description: Default Response
+  /monitor/{monitorId}/start:
+    post:
+      description: Start a specific monitor
+      parameters:
+        - type: string
+          required: true
+          in: path
+          name: monitorId
+      responses:
+        '200':
+          description: Default Response
+  /monitor/{monitorId}:
+    delete:
+      description: Stop and delete a specific monitor
+      parameters:
+        - type: string
+          required: true
+          in: path
+          name: monitorId
+      responses:
+        '200':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+              monitorId:
+                type: string
+        '404':
+          description: Default Response
+          schema:
+            type: object
+            properties:
+              status:
+                type: string
+              message:
+                type: string
+  /metrics:
+    get:
+      responses:
+        '200':
+          description: Default Response
+consumes:
+  - application/json
+produces:
+  - application/json
